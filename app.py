@@ -350,14 +350,19 @@ def main():
                             'URL': result['original_url'],
                             'Status': 'Error',
                             'Error': result['error'],
-                            'Bot': '', 'Allowed_Rules': '', 'Disallowed_Rules': '',
-                            'Crawl_Delay': '', 'Timestamp': result.get('timestamp', '')
+                            'Bot': '',
+                            'Allowed_Rules': '',
+                            'Disallowed_Rules': '',
+                            'Crawl_Delay': '',
+                            'Timestamp': result.get('timestamp', '')
                         })
                     else:
                         for bot, rules in result['results'].items():
                             excel_data.append({
                                 'URL': result['original_url'],
-                                'Status': 'Success', 'Error': '', 'Bot': bot,
+                                'Status': 'Success',
+                                'Error': '',
+                                'Bot': bot,
                                 'Allowed_Rules': '; '.join(rules.get('allowed', [])),
                                 'Disallowed_Rules': '; '.join(rules.get('disallowed', [])),
                                 'Crawl_Delay': rules.get('crawl_delay', ''),
@@ -382,11 +387,6 @@ def main():
 
 if __name__ == "__main__":
     main()
-                                'Status': 'Success', 'Error': '', 'Bot': bot,
-                                'Allowed_Rules': '; '.join(rules.get('allowed', [])),
-                                'Disallowed_Rules': '; '.join(rules.get('disallowed', [])),
-                                'Crawl_Delay': rules.get('crawl_delay', ''),
-                                'Timestamp': result.get('timestamp', '')
                             })
                 
                 df_export = pd.DataFrame(excel_data)
