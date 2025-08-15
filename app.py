@@ -1,7 +1,5 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
 from bots_checker import BotsChecker
 from datetime import datetime
 import base64
@@ -60,7 +58,7 @@ def get_download_link(df, filename):
     return href
 
 def create_status_chart(results):
-    """Crée un graphique des statuts"""
+    """Crée un graphique des statuts avec Streamlit natif"""
     status_counts = {'Success': 0, 'Error': 0}
     
     for result in results:
@@ -69,16 +67,12 @@ def create_status_chart(results):
         else:
             status_counts['Success'] += 1
     
-    fig = px.pie(
-        values=list(status_counts.values()),
-        names=list(status_counts.keys()),
-        title="Statut des vérifications",
-        color_discrete_map={'Success': '#28a745', 'Error': '#dc3545'}
-    )
-    return fig
+    # Utiliser le bar chart natif de Streamlit
+    df_status = pd.DataFrame(list(status_counts.items()), columns=['Status', 'Count'])
+    return df_status
 
-def create_bots_analysis_chart(results):
-    """Analyse des règles par bot"""
+def create_bots_analysis_data(results):
+    """Analyse des règles par bot - retourne les données pour affichage"""
     bot_data = {}
     
     for result in results:
@@ -97,19 +91,7 @@ def create_bots_analysis_chart(results):
     if bot_data:
         df_bots = pd.DataFrame(bot_data).T.reset_index()
         df_bots.columns = ['Bot', 'Blocked Rules', 'Allowed Rules', 'Sites Analyzed']
-        
-        fig = go.Figure(data=[
-            go.Bar(name='Blocked Rules', x=df_bots['Bot'], y=df_bots['Blocked Rules'], marker_color='#dc3545'),
-            go.Bar(name='Allowed Rules', x=df_bots['Bot'], y=df_bots['Allowed Rules'], marker_color='#28a745')
-        ])
-        
-        fig.update_layout(
-            title='Analyse des règles par bot',
-            xaxis_title='Crawlers IA',
-            yaxis_title='Nombre de règles',
-            barmode='group'
-        )
-        return fig
+        return df_bots
     return None
 
 def render_sidebar():
@@ -246,17 +228,19 @@ def render_results(results, selected_bots):
     with col4:
         st.metric("🤖 Bots testés", len(selected_bots))
     
-    # Graphiques
+    # Graphiques avec Streamlit natif
     col_chart1, col_chart2 = st.columns(2)
     
     with col_chart1:
-        status_fig = create_status_chart(results)
-        st.plotly_chart(status_fig, use_container_width=True)
+        st.subheader("📈 Statut des analyses")
+        status_df = create_status_chart(results)
+        st.bar_chart(status_df.set_index('Status'))
     
     with col_chart2:
-        bots_fig = create_bots_analysis_chart(results)
-        if bots_fig:
-            st.plotly_chart(bots_fig, use_container_width=True)
+        st.subheader("📊 Règles par crawler")
+        bots_df = create_bots_analysis_data(results)
+        if bots_df is not None:
+            st.bar_chart(bots_df.set_index('Bot')[['Blocked Rules', 'Allowed Rules']])
     
     # Résultats détaillés par URL
     st.markdown("### 📋 Détails par URL")
@@ -409,6 +393,22 @@ def main():
                 
                 df_export = pd.DataFrame(excel_data)
                 timestamp = st.session_state.analysis_timestamp.strftime('%Y%m%d_%H%M%S')
+                filename = f"robots_analysis_{timestamp}.xlsx"
+                
+                st.markdown(get_download_link(df_export, filename), unsafe_allow_html=True)
+                st.success("📄 Rapport Excel généré!")
+        
+        with col_export2:
+            # Afficher les stats de l'analyse
+            analysis_time = st.session_state.analysis_timestamp.strftime('%d/%m/%Y à %H:%M')
+            st.info(f"📅 **Analyse effectuée le:** {analysis_time}")
+            
+    # Footer
+    st.markdown("---")
+    st.markdown("*🤖 AI Crawlers & Robots.txt Checker - Analysez les permissions des crawlers IA*")
+
+if __name__ == "__main__":
+    main()
                 filename = f"robots_analysis_{timestamp}.xlsx"
                 
                 st.markdown(get_download_link(df_export, filename), unsafe_allow_html=True)
