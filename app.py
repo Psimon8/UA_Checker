@@ -147,27 +147,41 @@ def render_url_input():
     
     with tab1:
         st.subheader("Entrez vos URLs")
+        
+        # Zone de texte avec clé unique pour éviter les conflits
         urls_text = st.text_area(
             "Une URL par ligne:",
             placeholder="https://example.com\nhttps://monsite.fr\nwww.autresite.com",
             height=150,
-            help="Vous pouvez entrer les URLs avec ou sans https://"
+            help="Vous pouvez entrer les URLs avec ou sans https://",
+            key="url_input_textarea"
         )
-        if urls_text:
+        
+        # Traitement immédiat du texte saisi
+        if urls_text and urls_text.strip():
             urls = [url.strip() for url in urls_text.split('\n') if url.strip()]
+            
+            # Affichage en temps réel des URLs détectées
+            if urls:
+                st.success(f"✅ {len(urls)} URL(s) détectée(s)")
     
     with tab2:
         st.subheader("Importer depuis un fichier")
         uploaded_file = st.file_uploader(
             "Choisir un fichier (CSV ou TXT)",
             type=['csv', 'txt'],
-            help="Le fichier doit contenir une URL par ligne"
+            help="Le fichier doit contenir une URL par ligne",
+            key="file_uploader"
         )
         if uploaded_file:
             try:
                 content = uploaded_file.read().decode('utf-8')
-                urls = [url.strip() for url in content.split('\n') if url.strip()]
-                st.success(f"✅ {len(urls)} URLs importées")
+                file_urls = [url.strip() for url in content.split('\n') if url.strip()]
+                if file_urls:
+                    urls = file_urls
+                    st.success(f"✅ {len(urls)} URLs importées depuis le fichier")
+                else:
+                    st.warning("⚠️ Aucune URL valide trouvée dans le fichier")
             except Exception as e:
                 st.error(f"Erreur lors de la lecture du fichier: {e}")
     
@@ -180,19 +194,400 @@ def render_url_input():
                 "https://www.primelis.com/",
                 "https://www.eskimoz.fr/"
             ],
-            help="Sites SEO français pour tester les crawlers IA"
+            help="Sites SEO français pour tester les crawlers IA",
+            key="predefined_sites"
         )
-        urls = predefined
+        if predefined:
+            urls = predefined
     
-    # Affichage des URLs sélectionnées
+    # Affichage des URLs sélectionnées dans tous les cas
     if urls:
         st.markdown("### 📋 URLs à analyser")
         
-        # Affichage en colonnes
-        cols = st.columns(min(len(urls), 3))
-        for i, url in enumerate(urls):
-            with cols[i % 3]:
-                st.markdown(f"**{i+1}.** `{url}`")
+        # Créer un container pour l'affichage
+        url_container = st.container()
+        with url_container:
+            # Affichage en colonnes
+            num_cols = min(len(urls), 3)
+            if num_cols > 0:
+                cols = st.columns(num_cols)
+                for i, url in enumerate(urls):
+                    with cols[i % num_cols]:
+                        # Validation et nettoyage de l'URL
+                        clean_url = url.strip()
+                        if not clean_url.startswith(('http://', 'https://')):
+                            clean_url = 'https://' + clean_url
+                        
+                        st.markdown(f"**{i+1}.** `{clean_url}`")
+                        
+                        # Mise à jour de l'URL dans la liste
+                        urls[i] = clean_url
+        
+        if len(urls) > 9:
+            st.info(f"Et {len(urls) - 9} autres URLs...")
+    
+    return urls
+
+def create_status_chart(results):
+    """Crée un graphique des statuts avec Streamlit natif"""
+    status_counts = {'Success': 0, 'Error': 0}
+    
+    for result in results:
+        if 'error' in result:
+            status_counts['Error'] += 1
+        else:
+            status_counts['Success'] += 1
+    
+    df_status = pd.DataFrame(list(status_counts.items()), columns=['Status', 'Count'])
+    return df_status
+
+def create_bots_analysis_data(results):
+    """Analyse des sites autorisant/bloquant par bot - retourne les données pour affichage horizontal"""
+    bot_data = {}
+    
+    for result in results:
+        if 'error' not in result:
+            for bot, rules in result['results'].items():
+                if bot not in bot_data:
+                    bot_data[bot] = {'sites_autorisant': 0, 'sites_bloquant': 0}
+                
+                # Un site bloque si il y a des règles disallow importantes
+                has_blocking_rules = any(
+                    rule in ['/', '/admin', '/private', '/wp-admin'] 
+                    for rule in rules.get('disallowed', [])
+                )
+                
+                # Un site autorise si pas de règles bloquantes majeures ou règles allow explicites
+                has_allowing_rules = (
+                    not has_blocking_rules or 
+                    len(rules.get('allowed', [])) > 0
+                )
+                
+                if has_blocking_rules:
+                    bot_data[bot]['sites_bloquant'] += 1
+                else:
+                    bot_data[bot]['sites_autorisant'] += 1
+    
+    if bot_data:
+        df_bots = pd.DataFrame(bot_data).T.reset_index()
+        df_bots.columns = ['Bot', 'Sites autorisant', 'Sites bloquant']
+        return df_bots
+    return None
+
+def render_sidebar():
+    """Interface sidebar améliorée"""
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("⚙️ Configuration")
+    
+    # Sélection des bots avec groupes
+    st.sidebar.markdown("### 🤖 Crawlers IA")
+    
+    # Groupe moteurs de recherche
+    with st.sidebar.expander("🔍 Moteurs de recherche", expanded=True):
+        google = st.checkbox("GoogleBot", value=True, key="google")
+        bing = st.checkbox("BingBot", value=False, key="bing")
+        yandex = st.checkbox("YandexBot", value=False, key="yandex")
+    
+    # Groupe IA
+    with st.sidebar.expander("🧠 Crawlers IA", expanded=True):
+        openai = st.checkbox("OpenAI (GPTBot)", value=True, key="openai")
+        anthropic = st.checkbox("Anthropic (Claude)", value=True, key="anthropic")
+        perplexity = st.checkbox("Perplexity", value=True, key="perplexity")
+        cohere = st.checkbox("Cohere", value=False, key="cohere")
+    
+    # Groupe social
+    with st.sidebar.expander("📱 Réseaux sociaux", expanded=False):
+        facebook = st.checkbox("Facebook Bot", value=False, key="facebook")
+        twitter = st.checkbox("Twitter Bot", value=False, key="twitter")
+        linkedin = st.checkbox("LinkedIn Bot", value=False, key="linkedin")
+    
+    # Construction de la liste des bots sélectionnés
+    selected_bots = []
+    bot_mapping = {
+        'google': 'googlebot', 'bing': 'bingbot', 'yandex': 'yandexbot',
+        'openai': 'openai', 'anthropic': 'anthropic', 'perplexity': 'perplexity',
+        'cohere': 'cohere', 'facebook': 'facebookbot', 'twitter': 'twitterbot',
+        'linkedin': 'linkedinbot'
+    }
+    
+    for key, bot_name in bot_mapping.items():
+        if st.session_state.get(key, False):
+            selected_bots.append(bot_name)
+    
+    st.sidebar.markdown("---")
+    st.sidebar.markdown(f"**{len(selected_bots)}** crawlers sélectionnés")
+    
+    return selected_bots
+
+def render_url_input():
+    """Interface d'entrée des URLs améliorée"""
+    st.markdown('<div class="main-header"><h1>🤖 AI Crawlers & Robots.txt Checker</h1><p>Analysez les permissions robots.txt pour les crawlers IA sur vos sites web</p></div>', unsafe_allow_html=True)
+    
+    # Tabs pour les différentes méthodes d'entrée
+    tab1, tab2, tab3 = st.tabs(["📝 Saisie manuelle", "📁 Import fichier", "🌟 Sites prédéfinis"])
+    
+    urls = []
+    
+    with tab1:
+        st.subheader("Entrez vos URLs")
+        
+        # Zone de texte avec clé unique pour éviter les conflits
+        urls_text = st.text_area(
+            "Une URL par ligne:",
+            placeholder="https://example.com\nhttps://monsite.fr\nwww.autresite.com",
+            height=150,
+            help="Vous pouvez entrer les URLs avec ou sans https://",
+            key="url_input_textarea"
+        )
+        
+        # Traitement immédiat du texte saisi
+        if urls_text and urls_text.strip():
+            urls = [url.strip() for url in urls_text.split('\n') if url.strip()]
+            
+            # Affichage en temps réel des URLs détectées
+            if urls:
+                st.success(f"✅ {len(urls)} URL(s) détectée(s)")
+    
+    with tab2:
+        st.subheader("Importer depuis un fichier")
+        uploaded_file = st.file_uploader(
+            "Choisir un fichier (CSV ou TXT)",
+            type=['csv', 'txt'],
+            help="Le fichier doit contenir une URL par ligne",
+            key="file_uploader"
+        )
+        if uploaded_file:
+            try:
+                content = uploaded_file.read().decode('utf-8')
+                file_urls = [url.strip() for url in content.split('\n') if url.strip()]
+                if file_urls:
+                    urls = file_urls
+                    st.success(f"✅ {len(urls)} URLs importées depuis le fichier")
+                else:
+                    st.warning("⚠️ Aucune URL valide trouvée dans le fichier")
+            except Exception as e:
+                st.error(f"Erreur lors de la lecture du fichier: {e}")
+    
+    with tab3:
+        st.subheader("Sites d'exemple")
+        predefined = st.multiselect(
+            "Sélectionner des sites pour les tests:",
+            [
+                "https://www.yuriandneil.com/",
+                "https://www.primelis.com/",
+                "https://www.eskimoz.fr/"
+            ],
+            help="Sites SEO français pour tester les crawlers IA",
+            key="predefined_sites"
+        )
+        if predefined:
+            urls = predefined
+    
+    # Affichage des URLs sélectionnées dans tous les cas
+    if urls:
+        st.markdown("### 📋 URLs à analyser")
+        
+        # Créer un container pour l'affichage
+        url_container = st.container()
+        with url_container:
+            # Affichage en colonnes
+            num_cols = min(len(urls), 3)
+            if num_cols > 0:
+                cols = st.columns(num_cols)
+                for i, url in enumerate(urls):
+                    with cols[i % num_cols]:
+                        # Validation et nettoyage de l'URL
+                        clean_url = url.strip()
+                        if not clean_url.startswith(('http://', 'https://')):
+                            clean_url = 'https://' + clean_url
+                        
+                        st.markdown(f"**{i+1}.** `{clean_url}`")
+                        
+                        # Mise à jour de l'URL dans la liste
+                        urls[i] = clean_url
+        
+        if len(urls) > 9:
+            st.info(f"Et {len(urls) - 9} autres URLs...")
+    
+    return urls
+
+def create_status_chart(results):
+    """Crée un graphique des statuts avec Streamlit natif"""
+    status_counts = {'Success': 0, 'Error': 0}
+    
+    for result in results:
+        if 'error' in result:
+            status_counts['Error'] += 1
+        else:
+            status_counts['Success'] += 1
+    
+    df_status = pd.DataFrame(list(status_counts.items()), columns=['Status', 'Count'])
+    return df_status
+
+def create_bots_analysis_data(results):
+    """Analyse des sites autorisant/bloquant par bot - retourne les données pour affichage horizontal"""
+    bot_data = {}
+    
+    for result in results:
+        if 'error' not in result:
+            for bot, rules in result['results'].items():
+                if bot not in bot_data:
+                    bot_data[bot] = {'sites_autorisant': 0, 'sites_bloquant': 0}
+                
+                # Un site bloque si il y a des règles disallow importantes
+                has_blocking_rules = any(
+                    rule in ['/', '/admin', '/private', '/wp-admin'] 
+                    for rule in rules.get('disallowed', [])
+                )
+                
+                # Un site autorise si pas de règles bloquantes majeures ou règles allow explicites
+                has_allowing_rules = (
+                    not has_blocking_rules or 
+                    len(rules.get('allowed', [])) > 0
+                )
+                
+                if has_blocking_rules:
+                    bot_data[bot]['sites_bloquant'] += 1
+                else:
+                    bot_data[bot]['sites_autorisant'] += 1
+    
+    if bot_data:
+        df_bots = pd.DataFrame(bot_data).T.reset_index()
+        df_bots.columns = ['Bot', 'Sites autorisant', 'Sites bloquant']
+        return df_bots
+    return None
+
+def render_sidebar():
+    """Interface sidebar améliorée"""
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("⚙️ Configuration")
+    
+    # Sélection des bots avec groupes
+    st.sidebar.markdown("### 🤖 Crawlers IA")
+    
+    # Groupe moteurs de recherche
+    with st.sidebar.expander("🔍 Moteurs de recherche", expanded=True):
+        google = st.checkbox("GoogleBot", value=True, key="google")
+        bing = st.checkbox("BingBot", value=False, key="bing")
+        yandex = st.checkbox("YandexBot", value=False, key="yandex")
+    
+    # Groupe IA
+    with st.sidebar.expander("🧠 Crawlers IA", expanded=True):
+        openai = st.checkbox("OpenAI (GPTBot)", value=True, key="openai")
+        anthropic = st.checkbox("Anthropic (Claude)", value=True, key="anthropic")
+        perplexity = st.checkbox("Perplexity", value=True, key="perplexity")
+        cohere = st.checkbox("Cohere", value=False, key="cohere")
+    
+    # Groupe social
+    with st.sidebar.expander("📱 Réseaux sociaux", expanded=False):
+        facebook = st.checkbox("Facebook Bot", value=False, key="facebook")
+        twitter = st.checkbox("Twitter Bot", value=False, key="twitter")
+        linkedin = st.checkbox("LinkedIn Bot", value=False, key="linkedin")
+    
+    # Construction de la liste des bots sélectionnés
+    selected_bots = []
+    bot_mapping = {
+        'google': 'googlebot', 'bing': 'bingbot', 'yandex': 'yandexbot',
+        'openai': 'openai', 'anthropic': 'anthropic', 'perplexity': 'perplexity',
+        'cohere': 'cohere', 'facebook': 'facebookbot', 'twitter': 'twitterbot',
+        'linkedin': 'linkedinbot'
+    }
+    
+    for key, bot_name in bot_mapping.items():
+        if st.session_state.get(key, False):
+            selected_bots.append(bot_name)
+    
+    st.sidebar.markdown("---")
+    st.sidebar.markdown(f"**{len(selected_bots)}** crawlers sélectionnés")
+    
+    return selected_bots
+
+def render_url_input():
+    """Interface d'entrée des URLs améliorée"""
+    st.markdown('<div class="main-header"><h1>🤖 AI Crawlers & Robots.txt Checker</h1><p>Analysez les permissions robots.txt pour les crawlers IA sur vos sites web</p></div>', unsafe_allow_html=True)
+    
+    # Tabs pour les différentes méthodes d'entrée
+    tab1, tab2, tab3 = st.tabs(["📝 Saisie manuelle", "📁 Import fichier", "🌟 Sites prédéfinis"])
+    
+    urls = []
+    
+    with tab1:
+        st.subheader("Entrez vos URLs")
+        
+        # Zone de texte avec clé unique pour éviter les conflits
+        urls_text = st.text_area(
+            "Une URL par ligne:",
+            placeholder="https://example.com\nhttps://monsite.fr\nwww.autresite.com",
+            height=150,
+            help="Vous pouvez entrer les URLs avec ou sans https://",
+            key="url_input_textarea"
+        )
+        
+        # Traitement immédiat du texte saisi
+        if urls_text and urls_text.strip():
+            urls = [url.strip() for url in urls_text.split('\n') if url.strip()]
+            
+            # Affichage en temps réel des URLs détectées
+            if urls:
+                st.success(f"✅ {len(urls)} URL(s) détectée(s)")
+    
+    with tab2:
+        st.subheader("Importer depuis un fichier")
+        uploaded_file = st.file_uploader(
+            "Choisir un fichier (CSV ou TXT)",
+            type=['csv', 'txt'],
+            help="Le fichier doit contenir une URL par ligne",
+            key="file_uploader"
+        )
+        if uploaded_file:
+            try:
+                content = uploaded_file.read().decode('utf-8')
+                file_urls = [url.strip() for url in content.split('\n') if url.strip()]
+                if file_urls:
+                    urls = file_urls
+                    st.success(f"✅ {len(urls)} URLs importées depuis le fichier")
+                else:
+                    st.warning("⚠️ Aucune URL valide trouvée dans le fichier")
+            except Exception as e:
+                st.error(f"Erreur lors de la lecture du fichier: {e}")
+    
+    with tab3:
+        st.subheader("Sites d'exemple")
+        predefined = st.multiselect(
+            "Sélectionner des sites pour les tests:",
+            [
+                "https://www.yuriandneil.com/",
+                "https://www.primelis.com/",
+                "https://www.eskimoz.fr/"
+            ],
+            help="Sites SEO français pour tester les crawlers IA",
+            key="predefined_sites"
+        )
+        if predefined:
+            urls = predefined
+    
+    # Affichage des URLs sélectionnées dans tous les cas
+    if urls:
+        st.markdown("### 📋 URLs à analyser")
+        
+        # Créer un container pour l'affichage
+        url_container = st.container()
+        with url_container:
+            # Affichage en colonnes
+            num_cols = min(len(urls), 3)
+            if num_cols > 0:
+                cols = st.columns(num_cols)
+                for i, url in enumerate(urls):
+                    with cols[i % num_cols]:
+                        # Validation et nettoyage de l'URL
+                        clean_url = url.strip()
+                        if not clean_url.startswith(('http://', 'https://')):
+                            clean_url = 'https://' + clean_url
+                        
+                        st.markdown(f"**{i+1}.** `{clean_url}`")
+                        
+                        # Mise à jour de l'URL dans la liste
+                        urls[i] = clean_url
         
         if len(urls) > 9:
             st.info(f"Et {len(urls) - 9} autres URLs...")
@@ -239,33 +634,44 @@ def render_results(results, selected_bots):
             st.bar_chart(bots_df.set_index('Bot'), horizontal=True)
 
 def main():
+    # Initialisation des variables de session
+    if 'current_urls' not in st.session_state:
+        st.session_state.current_urls = []
+    
     # Sidebar
     selected_bots = render_sidebar()
     
     # Interface principale
     urls = render_url_input()
     
+    # Mise à jour des URLs dans la session
+    if urls:
+        st.session_state.current_urls = urls
+    
     # Section de lancement de l'analyse
     st.markdown("---")
+    
+    # Utiliser les URLs de la session pour la validation
+    current_urls = st.session_state.current_urls if st.session_state.current_urls else urls
     
     # Bouton de vérification avec validation - Correction de la logique
     launch_disabled = False
     
-    if len(urls) == 0:
-        st.warning("⚠️ Veuillez sélectionner au moins une URL à analyser")
+    if len(current_urls) == 0:
+        st.warning("⚠️ Veuillez saisir au moins une URL à analyser")
         launch_disabled = True
     elif len(selected_bots) == 0:
         st.warning("⚠️ Veuillez sélectionner au moins un crawler à tester")
         launch_disabled = True
     else:
-        st.info(f"🎯 Prêt à analyser **{len(urls)} URLs** avec **{len(selected_bots)} crawlers**")
+        st.info(f"🎯 Prêt à analyser **{len(current_urls)} URLs** avec **{len(selected_bots)} crawlers**")
     
     # Bouton de lancement
     col_btn1, col_btn2, col_btn3 = st.columns([2, 1, 2])
     
     with col_btn2:
         # Forcer la réactivation du bouton en utilisant une clé unique
-        button_key = f"launch_analysis_{len(urls)}_{len(selected_bots)}"
+        button_key = f"launch_analysis_{len(current_urls)}_{len(selected_bots)}_{hash(str(current_urls))}"
         
         if st.button(
             "🚀 Lancer l'analyse", 
@@ -275,15 +681,15 @@ def main():
             key=button_key
         ):
             # Vérification finale avant l'analyse
-            if len(urls) > 0 and len(selected_bots) > 0:
+            if len(current_urls) > 0 and len(selected_bots) > 0:
                 # Barre de progression
                 progress_bar = st.progress(0)
                 status_text = st.empty()
                 
                 results = []
                 
-                for i, url in enumerate(urls):
-                    status_text.info(f"🔍 Analyse en cours: **{url}** ({i+1}/{len(urls)})")
+                for i, url in enumerate(current_urls):
+                    status_text.info(f"🔍 Analyse en cours: **{url}** ({i+1}/{len(current_urls)})")
                     
                     # Analyse avec le checker
                     checker = BotsChecker()
@@ -292,7 +698,7 @@ def main():
                     results.append(result)
                     
                     # Update progress
-                    progress = (i + 1) / len(urls)
+                    progress = (i + 1) / len(current_urls)
                     progress_bar.progress(progress)
                     
                     # Petite pause pour l'UX
