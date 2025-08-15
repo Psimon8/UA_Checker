@@ -31,18 +31,6 @@ st.markdown("""
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         text-align: center;
     }
-    .bot-status-allowed {
-        color: #28a745;
-        font-weight: bold;
-    }
-    .bot-status-blocked {
-        color: #dc3545;
-        font-weight: bold;
-    }
-    .bot-status-error {
-        color: #ffc107;
-        font-weight: bold;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -54,7 +42,7 @@ def get_download_link(df, filename):
     
     excel_data = output.getvalue()
     b64 = base64.b64encode(excel_data).decode()
-    href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{filename}" class="btn btn-primary">📥 Télécharger Excel</a>'
+    href = f'<a href="data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,{b64}" download="{filename}">📥 Télécharger Excel</a>'
     return href
 
 def create_status_chart(results):
@@ -67,7 +55,6 @@ def create_status_chart(results):
         else:
             status_counts['Success'] += 1
     
-    # Utiliser le bar chart natif de Streamlit
     df_status = pd.DataFrame(list(status_counts.items()), columns=['Status', 'Count'])
     return df_status
 
@@ -294,18 +281,15 @@ def main():
     st.markdown("---")
     
     # Bouton de vérification avec validation
-    analysis_container = st.container()
-    
-    with analysis_container:
-        if len(urls) == 0:
-            st.warning("⚠️ Veuillez sélectionner au moins une URL à analyser")
-            launch_disabled = True
-        elif len(selected_bots) == 0:
-            st.warning("⚠️ Veuillez sélectionner au moins un crawler à tester")
-            launch_disabled = True
-        else:
-            launch_disabled = False
-            st.info(f"🎯 Prêt à analyser **{len(urls)} URLs** avec **{len(selected_bots)} crawlers**")
+    if len(urls) == 0:
+        st.warning("⚠️ Veuillez sélectionner au moins une URL à analyser")
+        launch_disabled = True
+    elif len(selected_bots) == 0:
+        st.warning("⚠️ Veuillez sélectionner au moins un crawler à tester")
+        launch_disabled = True
+    else:
+        launch_disabled = False
+        st.info(f"🎯 Prêt à analyser **{len(urls)} URLs** avec **{len(selected_bots)} crawlers**")
     
     # Bouton de lancement
     col_btn1, col_btn2, col_btn3 = st.columns([2, 1, 2])
@@ -317,38 +301,29 @@ def main():
             disabled=launch_disabled,
             use_container_width=True
         ):
-            # Barre de progression avec animation
-            progress_container = st.empty()
-            status_container = st.empty()
+            # Barre de progression
+            progress_bar = st.progress(0)
+            status_text = st.empty()
             
             results = []
             
-            with progress_container.container():
-                progress_bar = st.progress(0)
+            for i, url in enumerate(urls):
+                status_text.info(f"🔍 Analyse en cours: **{url}** ({i+1}/{len(urls)})")
                 
-                for i, url in enumerate(urls):
-                    # Status update
-                    status_container.info(f"🔍 Analyse en cours: **{url}** ({i+1}/{len(urls)})")
-                    
-                    # Simulation du checker
-                    checker = BotsChecker()
-                    result = checker.check_robots_txt(url, selected_bots)
-                    result['original_url'] = url
-                    results.append(result)
-                    
-                    # Update progress
-                    progress = (i + 1) / len(urls)
-                    progress_bar.progress(progress)
-                    
-                    # Petite pause pour l'UX
-                    time.sleep(0.1)
+                # Analyse avec le checker
+                checker = BotsChecker()
+                result = checker.check_robots_txt(url, selected_bots)
+                result['original_url'] = url
+                results.append(result)
                 
-                status_container.success("✅ **Analyse terminée avec succès!**")
-                time.sleep(1)  # Pause pour voir le message de succès
+                # Update progress
+                progress = (i + 1) / len(urls)
+                progress_bar.progress(progress)
+                
+                # Petite pause pour l'UX
+                time.sleep(0.1)
             
-            # Clear progress containers
-            progress_container.empty()
-            status_container.empty()
+            status_text.success("✅ **Analyse terminée avec succès!**")
             
             # Stocker les résultats
             st.session_state.results = results
@@ -382,6 +357,31 @@ def main():
                         for bot, rules in result['results'].items():
                             excel_data.append({
                                 'URL': result['original_url'],
+                                'Status': 'Success', 'Error': '', 'Bot': bot,
+                                'Allowed_Rules': '; '.join(rules.get('allowed', [])),
+                                'Disallowed_Rules': '; '.join(rules.get('disallowed', [])),
+                                'Crawl_Delay': rules.get('crawl_delay', ''),
+                                'Timestamp': result.get('timestamp', '')
+                            })
+                
+                df_export = pd.DataFrame(excel_data)
+                timestamp = st.session_state.analysis_timestamp.strftime('%Y%m%d_%H%M%S')
+                filename = f"robots_analysis_{timestamp}.xlsx"
+                
+                st.markdown(get_download_link(df_export, filename), unsafe_allow_html=True)
+                st.success("📄 Rapport Excel généré!")
+        
+        with col_export2:
+            # Afficher les stats de l'analyse
+            analysis_time = st.session_state.analysis_timestamp.strftime('%d/%m/%Y à %H:%M')
+            st.info(f"📅 **Analyse effectuée le:** {analysis_time}")
+    
+    # Footer
+    st.markdown("---")
+    st.markdown("*🤖 AI Crawlers & Robots.txt Checker - Analysez les permissions des crawlers IA*")
+
+if __name__ == "__main__":
+    main()
                                 'Status': 'Success', 'Error': '', 'Bot': bot,
                                 'Allowed_Rules': '; '.join(rules.get('allowed', [])),
                                 'Disallowed_Rules': '; '.join(rules.get('disallowed', [])),
