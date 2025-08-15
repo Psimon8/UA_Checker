@@ -92,14 +92,9 @@ def main():
         predefined = st.multiselect(
             "Sélectionner des sites populaires:",
             [
-                "https://openai.com",
-                "https://google.com",
-                "https://microsoft.com",
-                "https://github.com",
-                "https://stackoverflow.com",
-                "https://reddit.com",
-                "https://wikipedia.org",
-                "https://news.ycombinator.com"
+                "https://www.yuriandneil.com/",
+                "https://www.primelis.com/",
+                "https://www.eskimoz.fr/"
             ]
         )
         urls = predefined
@@ -209,6 +204,11 @@ def main():
             df_export = pd.DataFrame(excel_data)
             filename = f"robots_check_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
             
+            st.markdown(get_download_link(df_export, filename), unsafe_allow_html=True)
+            st.success("Fichier Excel généré! Cliquez sur le lien ci-dessus pour télécharger.")
+
+if __name__ == "__main__":
+    main()
             st.markdown(get_download_link(df_export, filename), unsafe_allow_html=True)
             st.success("Fichier Excel généré! Cliquez sur le lien ci-dessus pour télécharger.")
 

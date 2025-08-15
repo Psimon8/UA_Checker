@@ -6,6 +6,8 @@ from urllib.parse import urlparse
 from typing import Dict, List, Optional
 import pandas as pd
 from datetime import datetime
+import time
+from bs4 import BeautifulSoup
 
 class BotsChecker:
     def __init__(self):
@@ -70,6 +72,11 @@ class BotsChecker:
                 'dns_suffixes': ['.cohere.ai']
             }
         }
+        
+        self.session = requests.Session()
+        self.session.headers.update({
+            'User-Agent': 'BotsChecker/1.0 (+https://github.com/bots-checker)'
+        })
     
     def get_bot_list(self) -> List[str]:
         """Retourne la liste des bots disponibles"""
@@ -198,6 +205,172 @@ class BotsChecker:
         else:
             return "suspicious_bot"
     
+    def check_url_access(self, url: str, bot_name: str = None, user_agent: str = None) -> Dict:
+        """Vérifie l'accès à une URL avec simulation de bot"""
+        try:
+            start_time = time.time()
+            
+            # Headers personnalisés si un bot spécifique est testé
+            headers = {}
+            if user_agent:
+                headers['User-Agent'] = user_agent
+            elif bot_name and bot_name in self.known_bots:
+                # User agents par défaut pour les bots
+                default_agents = {
+                    'googlebot': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+                    'bingbot': 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)',
+                    'openai': 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; GPTBot/1.0; +https://openai.com/gptbot'
+                }
+                if bot_name in default_agents:
+                    headers['User-Agent'] = default_agents[bot_name]
+            
+            response = requests.get(url, headers=headers, timeout=10, allow_redirects=True)
+            load_time = time.time() - start_time
+            
+            # Analyse du contenu HTML pour robots meta
+            robots_meta = self._extract_robots_meta(response.text)
+            
+            # Extraction du titre
+            title = self._extract_title(response.text)
+            
+            return {
+                'url': url,
+                'status_code': response.status_code,
+                'status_text': self._get_status_text(response.status_code),
+                'load_time': round(load_time, 2),
+                'title': title,
+                'robots_meta': robots_meta,
+                'headers': dict(response.headers),
+                'success': response.status_code < 400
+            }
+            
+        except requests.exceptions.Timeout:
+            return {
+                'url': url,
+                'status_code': 408,
+                'status_text': 'Timeout',
+                'load_time': 10.0,
+                'title': 'Request Timeout',
+                'robots_meta': 'No robots meta',
+                'error': 'Request timeout',
+                'success': False
+            }
+        except Exception as e:
+            return {
+                'url': url,
+                'status_code': 0,
+                'status_text': 'Error',
+                'load_time': 0,
+                'title': 'Error',
+                'robots_meta': 'No robots meta',
+                'error': str(e),
+                'success': False
+            }
+    
+    def _extract_robots_meta(self, html_content: str) -> str:
+        """Extrait les balises meta robots du HTML"""
+        try:
+            soup = BeautifulSoup(html_content, 'html.parser')
+            robots_tags = soup.find_all('meta', attrs={'name': re.compile(r'robots', re.I)})
+            
+            if not robots_tags:
+                return 'No robots meta'
+            
+            robot_directives = []
+            for tag in robots_tags:
+                content = tag.get('content', '').strip()
+                if content:
+                    robot_directives.append(content)
+            
+            return ', '.join(robot_directives) if robot_directives else 'No robots meta'
+        except:
+            return 'No robots meta'
+    
+    def _extract_title(self, html_content: str) -> str:
+        """Extrait le titre de la page HTML"""
+        try:
+            soup = BeautifulSoup(html_content, 'html.parser')
+            title_tag = soup.find('title')
+            return title_tag.get_text().strip() if title_tag else 'No title'
+        except:
+            return 'No title'
+    
+    def _get_status_text(self, status_code: int) -> str:
+        """Retourne le texte correspondant au code de statut"""
+        status_texts = {
+            200: 'OK',
+            403: 'Forbidden',
+            404: 'Not Found',
+            500: 'Internal Server Error',
+            408: 'Timeout',
+            0: 'Connection Error'
+        }
+        return status_texts.get(status_code, f'HTTP {status_code}')
+    
+    def check_bot_access(self, url: str, bot_name: str) -> Dict:
+        """Vérifie l'accès complet d'un bot à une URL (robots.txt + accès direct)"""
+        try:
+            # Vérification robots.txt
+            robots_result = self.check_robots_txt(url, [bot_name])
+            
+            # Vérification de l'accès direct
+            access_result = self.check_url_access(url, bot_name)
+            
+            # Analyse des résultats robots.txt
+            robots_status = 'Unknown'
+            if 'error' not in robots_result and 'results' in robots_result:
+                bot_rules = robots_result['results'].get(bot_name, {})
+                if bot_rules.get('disallowed'):
+                    # Vérifier si l'URL est explicitement bloquée
+                    parsed_url = urlparse(url)
+                    path = parsed_url.path or '/'
+                    
+                    is_blocked = False
+                    for disallow_pattern in bot_rules['disallowed']:
+                        if disallow_pattern == '/' or path.startswith(disallow_pattern):
+                            is_blocked = True
+                            break
+                    
+                    robots_status = 'Blocked' if is_blocked else 'Allowed'
+                else:
+                    robots_status = 'Allowed'
+            else:
+                robots_status = 'No robots.txt'
+            
+            # Détermination du statut global
+            if access_result['status_code'] == 403:
+                overall_status = 'BLOCKED'
+            elif access_result['status_code'] == 200:
+                overall_status = 'ALLOWED'
+            else:
+                overall_status = 'ERROR'
+            
+            return {
+                'bot_name': bot_name.upper(),
+                'url': url,
+                'overall_status': overall_status,
+                'status_code': access_result['status_code'],
+                'robots_meta': access_result['robots_meta'],
+                'robots_txt': robots_status,
+                'title': access_result['title'],
+                'load_time': f"{access_result['load_time']}s",
+                'timestamp': datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            return {
+                'bot_name': bot_name.upper(),
+                'url': url,
+                'overall_status': 'ERROR',
+                'status_code': 0,
+                'robots_meta': 'No robots meta',
+                'robots_txt': 'Error',
+                'title': 'Error',
+                'load_time': '0s',
+                'error': str(e),
+                'timestamp': datetime.now().isoformat()
+            }
+    
     def check_robots_txt(self, url: str, selected_bots: List[str]) -> Dict:
         """Vérifie robots.txt pour les bots sélectionnés"""
         try:
@@ -208,7 +381,7 @@ class BotsChecker:
             if response.status_code != 200:
                 return {'error': f'Impossible de récupérer robots.txt (HTTP {response.status_code})'}
             
-            robots_content = response.text.lower()
+            robots_content = response.text
             results = {}
             
             for bot in selected_bots:
@@ -226,33 +399,91 @@ class BotsChecker:
             return {'error': f'Erreur lors de la vérification: {str(e)}'}
     
     def _parse_robots_for_bot(self, robots_content: str, bot: str) -> Dict:
-        """Parse robots.txt pour un bot spécifique"""
+        """Parse robots.txt pour un bot spécifique avec amélioration"""
         lines = robots_content.split('\n')
-        current_agent = None
+        current_agents = []
         bot_rules = {'allowed': [], 'disallowed': [], 'crawl_delay': None}
         
-        bot_patterns = [bot.lower(), f'*{bot.lower()}*', '*']
+        # Patterns pour matcher le bot
+        bot_patterns = [
+            bot.lower(),
+            f'*{bot.lower()}*',
+            '*'
+        ]
+        
+        # Patterns spécifiques pour certains bots
+        specific_patterns = {
+            'openai': ['gptbot', 'chatgpt-user', 'openai'],
+            'anthropic': ['claude-bot', 'anthropic'],
+        }
+        
+        if bot in specific_patterns:
+            bot_patterns.extend(specific_patterns[bot])
         
         for line in lines:
             line = line.strip()
-            if line.startswith('user-agent:'):
-                current_agent = line.split(':', 1)[1].strip()
-            elif current_agent and any(pattern in current_agent for pattern in bot_patterns):
-                if line.startswith('disallow:'):
+            
+            if line.startswith('#') or not line:
+                continue
+                
+            if line.lower().startswith('user-agent:'):
+                agent = line.split(':', 1)[1].strip().lower()
+                current_agents = [agent]
+                
+            elif current_agents and any(self._matches_agent(agent, bot_patterns) for agent in current_agents):
+                if line.lower().startswith('disallow:'):
                     path = line.split(':', 1)[1].strip()
-                    if path:
+                    if path and path not in bot_rules['disallowed']:
                         bot_rules['disallowed'].append(path)
-                elif line.startswith('allow:'):
+                        
+                elif line.lower().startswith('allow:'):
                     path = line.split(':', 1)[1].strip()
-                    if path:
+                    if path and path not in bot_rules['allowed']:
                         bot_rules['allowed'].append(path)
-                elif line.startswith('crawl-delay:'):
+                        
+                elif line.lower().startswith('crawl-delay:'):
                     try:
-                        bot_rules['crawl_delay'] = int(line.split(':', 1)[1].strip())
+                        delay_value = line.split(':', 1)[1].strip()
+                        bot_rules['crawl_delay'] = int(delay_value)
                     except ValueError:
                         pass
         
         return bot_rules
+    
+    def _matches_agent(self, agent: str, patterns: List[str]) -> bool:
+        """Vérifie si un user-agent correspond aux patterns"""
+        agent = agent.lower()
+        for pattern in patterns:
+            if pattern == '*':
+                return True
+            elif pattern.startswith('*') and pattern.endswith('*'):
+                # Pattern comme *bot*
+                if pattern.strip('*') in agent:
+                    return True
+            elif pattern.endswith('*'):
+                # Pattern comme googlebot*
+                if agent.startswith(pattern.rstrip('*')):
+                    return True
+            elif pattern.startswith('*'):
+                # Pattern comme *bot
+                if agent.endswith(pattern.lstrip('*')):
+                    return True
+            else:
+                # Correspondance exacte ou contient
+                if pattern == agent or pattern in agent:
+                    return True
+        return False
+    
+    def format_result_output(self, result: Dict) -> str:
+        """Formate le résultat selon le style attendu"""
+        output = []
+        output.append(f"{result['bot_name']}:\t\t{result['overall_status']}")
+        output.append(f"\tStatus Code:\t{result['status_code']}")
+        output.append(f"\tRobots Meta:\t{result['robots_meta']}")
+        output.append(f"\tRobots.txt:\t{result['robots_txt']}")
+        output.append(f"\tTitle:\t\t{result['title']}")
+        output.append(f"\tLoad Time:\t{result['load_time']}")
+        return '\n'.join(output)
     
     def batch_check_urls(self, urls: List[str], selected_bots: List[str]) -> List[Dict]:
         """Vérifie plusieurs URLs"""
@@ -413,6 +644,27 @@ def main():
                 print(f"    - Confidence: {validation['confidence']}")
         
         print("-" * 60)
+    
+    # Test spécifique pour OpenAI GPTBot
+    test_url = "https://example.com"  # Remplacer par l'URL à tester
+    
+    print("=== Bot Access Checker ===\n")
+    
+    # Test OpenAI GPTBot
+    result = checker.check_bot_access(test_url, 'openai')
+    formatted_output = checker.format_result_output(result)
+    print(formatted_output)
+    
+    print("\n" + "="*50 + "\n")
+    
+    # Tests supplémentaires
+    test_bots = ['googlebot', 'bingbot', 'openai']
+    
+    for bot in test_bots:
+        result = checker.check_bot_access(test_url, bot)
+        formatted_output = checker.format_result_output(result)
+        print(formatted_output)
+        print()
 
 if __name__ == "__main__":
     main()
