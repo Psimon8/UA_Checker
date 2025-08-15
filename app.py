@@ -59,25 +59,35 @@ def create_status_chart(results):
     return df_status
 
 def create_bots_analysis_data(results):
-    """Analyse des règles par bot - retourne les données pour affichage"""
+    """Analyse des sites autorisant/bloquant par bot - retourne les données pour affichage horizontal"""
     bot_data = {}
     
     for result in results:
         if 'error' not in result:
             for bot, rules in result['results'].items():
                 if bot not in bot_data:
-                    bot_data[bot] = {'blocked': 0, 'allowed': 0, 'total': 0}
+                    bot_data[bot] = {'sites_autorisant': 0, 'sites_bloquant': 0}
                 
-                disallowed_count = len(rules.get('disallowed', []))
-                allowed_count = len(rules.get('allowed', []))
+                # Un site bloque si il y a des règles disallow importantes
+                has_blocking_rules = any(
+                    rule in ['/', '/admin', '/private', '/wp-admin'] 
+                    for rule in rules.get('disallowed', [])
+                )
                 
-                bot_data[bot]['blocked'] += disallowed_count
-                bot_data[bot]['allowed'] += allowed_count
-                bot_data[bot]['total'] += 1
+                # Un site autorise si pas de règles bloquantes majeures ou règles allow explicites
+                has_allowing_rules = (
+                    not has_blocking_rules or 
+                    len(rules.get('allowed', [])) > 0
+                )
+                
+                if has_blocking_rules:
+                    bot_data[bot]['sites_bloquant'] += 1
+                else:
+                    bot_data[bot]['sites_autorisant'] += 1
     
     if bot_data:
         df_bots = pd.DataFrame(bot_data).T.reset_index()
-        df_bots.columns = ['Bot', 'Blocked Rules', 'Allowed Rules', 'Sites Analyzed']
+        df_bots.columns = ['Bot', 'Sites autorisant', 'Sites bloquant']
         return df_bots
     return None
 
@@ -222,53 +232,11 @@ def render_results(results, selected_bots):
         st.bar_chart(status_df.set_index('Status'))
     
     with col_chart2:
-        st.subheader("📊 Règles par crawler")
+        st.subheader("🤖 Sites par crawler")
         bots_df = create_bots_analysis_data(results)
         if bots_df is not None:
-            st.bar_chart(bots_df.set_index('Bot')[['Blocked Rules', 'Allowed Rules']])
-    
-    # Résultats détaillés par URL
-    st.markdown("### 📋 Détails par URL")
-    
-    for i, result in enumerate(results):
-        with st.expander(f"🌐 {result['original_url']}", expanded=False):
-            if 'error' in result:
-                st.error(f"❌ **Erreur:** {result['error']}")
-            else:
-                st.success("✅ **Robots.txt analysé avec succès**")
-                
-                # Créer des onglets pour chaque bot
-                if result['results']:
-                    bot_tabs = st.tabs([bot.title() for bot in result['results'].keys()])
-                    
-                    for j, (bot, rules) in enumerate(result['results'].items()):
-                        with bot_tabs[j]:
-                            col_info1, col_info2, col_info3 = st.columns(3)
-                            
-                            with col_info1:
-                                st.metric("🚫 Règles Disallow", len(rules.get('disallowed', [])))
-                            
-                            with col_info2:
-                                st.metric("✅ Règles Allow", len(rules.get('allowed', [])))
-                            
-                            with col_info3:
-                                crawl_delay = rules.get('crawl_delay', 'Non spécifié')
-                                st.metric("⏱️ Crawl Delay", f"{crawl_delay}s" if crawl_delay != 'Non spécifié' else crawl_delay)
-                            
-                            # Détails des règles
-                            if rules.get('disallowed'):
-                                st.markdown("**🚫 Chemins bloqués:**")
-                                for path in rules['disallowed'][:10]:  # Limiter à 10
-                                    st.code(path)
-                                if len(rules['disallowed']) > 10:
-                                    st.info(f"... et {len(rules['disallowed']) - 10} autres règles")
-                            
-                            if rules.get('allowed'):
-                                st.markdown("**✅ Chemins autorisés:**")
-                                for path in rules['allowed'][:10]:  # Limiter à 10
-                                    st.code(path)
-                                if len(rules['allowed']) > 10:
-                                    st.info(f"... et {len(rules['allowed']) - 10} autres règles")
+            # Affichage horizontal avec barres empilées
+            st.bar_chart(bots_df.set_index('Bot'), horizontal=True)
 
 def main():
     # Sidebar
@@ -380,6 +348,50 @@ def main():
             # Afficher les stats de l'analyse
             analysis_time = st.session_state.analysis_timestamp.strftime('%d/%m/%Y à %H:%M')
             st.info(f"📅 **Analyse effectuée le:** {analysis_time}")
+        
+        # Résultats détaillés par URL (déplacé après l'export)
+        st.markdown("---")
+        st.markdown("### 📋 Détails par URL")
+        
+        for i, result in enumerate(st.session_state.results):
+            with st.expander(f"🌐 {result['original_url']}", expanded=False):
+                if 'error' in result:
+                    st.error(f"❌ **Erreur:** {result['error']}")
+                else:
+                    st.success("✅ **Robots.txt analysé avec succès**")
+                    
+                    # Créer des onglets pour chaque bot
+                    if result['results']:
+                        bot_tabs = st.tabs([bot.title() for bot in result['results'].keys()])
+                        
+                        for j, (bot, rules) in enumerate(result['results'].items()):
+                            with bot_tabs[j]:
+                                col_info1, col_info2, col_info3 = st.columns(3)
+                                
+                                with col_info1:
+                                    st.metric("🚫 Règles Disallow", len(rules.get('disallowed', [])))
+                                
+                                with col_info2:
+                                    st.metric("✅ Règles Allow", len(rules.get('allowed', [])))
+                                
+                                with col_info3:
+                                    crawl_delay = rules.get('crawl_delay', 'Non spécifié')
+                                    st.metric("⏱️ Crawl Delay", f"{crawl_delay}s" if crawl_delay != 'Non spécifié' else crawl_delay)
+                                
+                                # Détails des règles
+                                if rules.get('disallowed'):
+                                    st.markdown("**🚫 Chemins bloqués:**")
+                                    for path in rules['disallowed'][:10]:  # Limiter à 10
+                                        st.code(path)
+                                    if len(rules['disallowed']) > 10:
+                                        st.info(f"... et {len(rules['disallowed']) - 10} autres règles")
+                                
+                                if rules.get('allowed'):
+                                    st.markdown("**✅ Chemins autorisés:**")
+                                    for path in rules['allowed'][:10]:  # Limiter à 10
+                                        st.code(path)
+                                    if len(rules['allowed']) > 10:
+                                        st.info(f"... et {len(rules['allowed']) - 10} autres règles")
     
     # Footer
     st.markdown("---")
