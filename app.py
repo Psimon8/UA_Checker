@@ -248,7 +248,9 @@ def main():
     # Section de lancement de l'analyse
     st.markdown("---")
     
-    # Bouton de vérification avec validation
+    # Bouton de vérification avec validation - Correction de la logique
+    launch_disabled = False
+    
     if len(urls) == 0:
         st.warning("⚠️ Veuillez sélectionner au moins une URL à analyser")
         launch_disabled = True
@@ -256,47 +258,55 @@ def main():
         st.warning("⚠️ Veuillez sélectionner au moins un crawler à tester")
         launch_disabled = True
     else:
-        launch_disabled = False
         st.info(f"🎯 Prêt à analyser **{len(urls)} URLs** avec **{len(selected_bots)} crawlers**")
     
     # Bouton de lancement
     col_btn1, col_btn2, col_btn3 = st.columns([2, 1, 2])
     
     with col_btn2:
+        # Forcer la réactivation du bouton en utilisant une clé unique
+        button_key = f"launch_analysis_{len(urls)}_{len(selected_bots)}"
+        
         if st.button(
             "🚀 Lancer l'analyse", 
             type="primary", 
             disabled=launch_disabled,
-            use_container_width=True
+            use_container_width=True,
+            key=button_key
         ):
-            # Barre de progression
-            progress_bar = st.progress(0)
-            status_text = st.empty()
-            
-            results = []
-            
-            for i, url in enumerate(urls):
-                status_text.info(f"🔍 Analyse en cours: **{url}** ({i+1}/{len(urls)})")
+            # Vérification finale avant l'analyse
+            if len(urls) > 0 and len(selected_bots) > 0:
+                # Barre de progression
+                progress_bar = st.progress(0)
+                status_text = st.empty()
                 
-                # Analyse avec le checker
-                checker = BotsChecker()
-                result = checker.check_robots_txt(url, selected_bots)
-                result['original_url'] = url
-                results.append(result)
+                results = []
                 
-                # Update progress
-                progress = (i + 1) / len(urls)
-                progress_bar.progress(progress)
+                for i, url in enumerate(urls):
+                    status_text.info(f"🔍 Analyse en cours: **{url}** ({i+1}/{len(urls)})")
+                    
+                    # Analyse avec le checker
+                    checker = BotsChecker()
+                    result = checker.check_robots_txt(url, selected_bots)
+                    result['original_url'] = url
+                    results.append(result)
+                    
+                    # Update progress
+                    progress = (i + 1) / len(urls)
+                    progress_bar.progress(progress)
+                    
+                    # Petite pause pour l'UX
+                    time.sleep(0.1)
                 
-                # Petite pause pour l'UX
-                time.sleep(0.1)
-            
-            status_text.success("✅ **Analyse terminée avec succès!**")
-            
-            # Stocker les résultats
-            st.session_state.results = results
-            st.session_state.selected_bots = selected_bots
-            st.session_state.analysis_timestamp = datetime.now()
+                status_text.success("✅ **Analyse terminée avec succès!**")
+                
+                # Stocker les résultats
+                st.session_state.results = results
+                st.session_state.selected_bots = selected_bots
+                st.session_state.analysis_timestamp = datetime.now()
+                
+                # Force rerun pour afficher les résultats
+                st.rerun()
     
     # Affichage des résultats
     if hasattr(st.session_state, 'results') and st.session_state.results:
