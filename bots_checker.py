@@ -7,7 +7,10 @@ from typing import Dict, List, Optional
 import pandas as pd
 from datetime import datetime
 import time
-from bs4 import BeautifulSoup
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    BeautifulSoup = None
 
 class BotsChecker:
     def __init__(self):
@@ -269,6 +272,16 @@ class BotsChecker:
     
     def _extract_robots_meta(self, html_content: str) -> str:
         """Extrait les balises meta robots du HTML"""
+        if not BeautifulSoup:
+            # Fallback sans BeautifulSoup
+            try:
+                import re
+                meta_pattern = r'<meta[^>]+name=["\']robots["\'][^>]+content=["\']([^"\']+)["\'][^>]*>'
+                matches = re.findall(meta_pattern, html_content, re.IGNORECASE)
+                return ', '.join(matches) if matches else 'No robots meta'
+            except:
+                return 'No robots meta'
+        
         try:
             soup = BeautifulSoup(html_content, 'html.parser')
             robots_tags = soup.find_all('meta', attrs={'name': re.compile(r'robots', re.I)})
@@ -288,6 +301,16 @@ class BotsChecker:
     
     def _extract_title(self, html_content: str) -> str:
         """Extrait le titre de la page HTML"""
+        if not BeautifulSoup:
+            # Fallback sans BeautifulSoup
+            try:
+                import re
+                title_pattern = r'<title[^>]*>([^<]+)</title>'
+                match = re.search(title_pattern, html_content, re.IGNORECASE | re.DOTALL)
+                return match.group(1).strip() if match else 'No title'
+            except:
+                return 'No title'
+        
         try:
             soup = BeautifulSoup(html_content, 'html.parser')
             title_tag = soup.find('title')
