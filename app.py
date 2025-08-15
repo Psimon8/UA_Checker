@@ -96,8 +96,6 @@ def create_bots_analysis_data(results):
 
 def render_sidebar():
     """Interface sidebar améliorée"""
-    st.sidebar.image("https://via.placeholder.com/300x100/667eea/ffffff?text=Bot+Checker", width=300)
-    
     st.sidebar.markdown("---")
     st.sidebar.subheader("⚙️ Configuration")
     
@@ -407,6 +405,8 @@ def main():
     st.markdown("---")
     st.markdown("*🤖 AI Crawlers & Robots.txt Checker - Analysez les permissions des crawlers IA*")
 
+if __name__ == "__main__":
+    main()
 if __name__ == "__main__":
     main()
                 filename = f"robots_analysis_{timestamp}.xlsx"
