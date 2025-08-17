@@ -249,49 +249,55 @@ def render_url_input():
     return urls
 
 def create_detailed_results_table(results, selected_bots):
-    """Crée un tableau détaillé avec le statut OK/KO pour chaque site et crawler"""
+    """Crée un tableau détaillé avec le statut OK/KO/NA pour chaque site et crawler"""
     table_data = []
     
     for result in results:
         row = {'Site': result['original_url']}
         
         if 'error' in result:
-            # Si erreur globale, tous les bots sont KO
+            # Si erreur globale, tous les bots sont NA
             for bot in selected_bots:
-                row[bot.upper()] = f"KO ({result['error']})"
+                row[bot.upper()] = f"NA (Erreur: {result['error'][:50]}...)"
         else:
-            # Analyser chaque bot
+            # Analyser chaque bot avec les nouveaux résultats
             for bot in selected_bots:
                 if bot in result.get('results', {}):
-                    rules = result['results'][bot]
+                    bot_result = result['results'][bot]
+                    status = bot_result.get('status', 'NA')
+                    reason = bot_result.get('reason', 'Raison inconnue')
                     
-                    # Vérifier les règles de blocage
-                    disallowed = rules.get('disallowed', [])
-                    
-                    # Déterminer le statut
-                    if not disallowed:
-                        row[bot.upper()] = "OK"
-                    else:
-                        # Vérifier les règles critiques
-                        critical_blocks = []
-                        for rule in disallowed:
-                            if rule == '/':
-                                critical_blocks.append("Blocage total")
-                            elif rule in ['/admin', '/wp-admin']:
-                                critical_blocks.append("Admin bloqué")
-                            elif rule in ['/api', '/private']:
-                                critical_blocks.append("API/Privé bloqué")
-                        
-                        if critical_blocks:
-                            reason = ", ".join(critical_blocks)
-                            row[bot.upper()] = f"KO ({reason})"
-                        elif len(disallowed) > 5:
-                            row[bot.upper()] = f"KO (Nombreuses restrictions: {len(disallowed)} règles)"
+                    # Format: STATUS (raison courte)
+                    if status == 'OK':
+                        if 'malgré robots.txt' in reason:
+                            row[bot.upper()] = "OK (Malgré robots.txt)"
                         else:
-                            # Restrictions mineures
-                            row[bot.upper()] = "OK (Restrictions mineures)"
+                            row[bot.upper()] = "OK"
+                    elif status == 'KO':
+                        # Extraire la raison principale
+                        if 'Tous les UA bloqués' in reason:
+                            row[bot.upper()] = "KO (Tous UA bloqués)"
+                        elif 'UA bloqués' in reason:
+                            row[bot.upper()] = "KO (UA partiellement bloqués)"
+                        elif 'robots.txt' in reason:
+                            row[bot.upper()] = "KO (Robots.txt)"
+                        elif '403' in reason:
+                            row[bot.upper()] = "KO (403 Forbidden)"
+                        elif '429' in reason:
+                            row[bot.upper()] = "KO (Rate Limited)"
+                        else:
+                            row[bot.upper()] = f"KO ({reason[:20]}...)"
+                    else:  # NA
+                        if 'Test impossible' in reason:
+                            row[bot.upper()] = "NA (Test impossible)"
+                        elif 'Timeout' in reason:
+                            row[bot.upper()] = "NA (Timeout)"
+                        elif 'erreurs' in reason:
+                            row[bot.upper()] = "NA (Erreurs réseau)"
+                        else:
+                            row[bot.upper()] = f"NA ({reason[:20]}...)"
                 else:
-                    row[bot.upper()] = "KO (Non analysé)"
+                    row[bot.upper()] = "NA (Non testé)"
         
         table_data.append(row)
     
@@ -301,26 +307,47 @@ def render_results(results, selected_bots):
     """Affichage amélioré des résultats"""
     st.markdown("## 📊 Résultats de l'analyse")
     
-    # Métriques globales
+    # Métriques globales améliorées
     total_urls = len(results)
     success_count = sum(1 for r in results if 'error' not in r)
     error_count = total_urls - success_count
     
+    # Calcul des statistiques par statut
+    ok_count = 0
+    ko_count = 0
+    na_count = 0
+    
+    for result in results:
+        if 'error' not in result and 'results' in result:
+            for bot_result in result['results'].values():
+                status = bot_result.get('status', 'NA')
+                if status == 'OK':
+                    ok_count += 1
+                elif status == 'KO':
+                    ko_count += 1
+                else:
+                    na_count += 1
+    
     # Affichage des métriques
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
         st.metric("🔍 URLs analysées", total_urls)
     
     with col2:
-        st.metric("✅ Succès", success_count, delta=f"{success_count/total_urls*100:.1f}%")
+        st.metric("✅ Tests OK", ok_count)
     
     with col3:
-        st.metric("❌ Erreurs", error_count, delta=f"{error_count/total_urls*100:.1f}%" if error_count > 0 else None)
+        st.metric("❌ Tests KO", ko_count)
     
     with col4:
-        st.metric("🤖 Bots testés", len(selected_bots))
+        st.metric("⚠️ Tests NA", na_count)
     
+    with col5:
+        total_tests = ok_count + ko_count + na_count
+        success_rate = (ok_count / total_tests * 100) if total_tests > 0 else 0
+        st.metric("📈 Taux de succès", f"{success_rate:.1f}%")
+
     # Graphiques avec Streamlit natif
     col_chart1, col_chart2 = st.columns(2)
     
@@ -357,25 +384,27 @@ def render_results(results, selected_bots):
     
     detailed_table = create_detailed_results_table(results, selected_bots)
     
-    # Fonction pour colorer les cellules
+    # Fonction pour colorer les cellules améliorée
     def highlight_status(val):
         if isinstance(val, str):
             if val.startswith("OK"):
-                return 'background-color: #d4edda; color: #155724'  # Vert clair
+                return 'background-color: #d4edda; color: #155724'  # Vert
             elif val.startswith("KO"):
-                return 'background-color: #f8d7da; color: #721c24'  # Rouge clair
+                return 'background-color: #f8d7da; color: #721c24'  # Rouge
+            elif val.startswith("NA"):
+                return 'background-color: #fff3cd; color: #856404'  # Jaune
         return ''
     
     # Appliquer le style et afficher le tableau complet
     styled_table = detailed_table.style.applymap(highlight_status)
     st.dataframe(styled_table, use_container_width=True, height=400)
     
-    # Légende
+    # Légende mise à jour
     st.markdown("""
     **Légende:**
-    - 🟢 **OK** : Crawler autorisé sans restrictions majeures
-    - 🔴 **KO** : Crawler bloqué ou avec restrictions importantes
-    - **Restrictions mineures** : Quelques chemins bloqués mais accès général autorisé
+    - 🟢 **OK** : Crawler autorisé et accès confirmé
+    - 🔴 **KO** : Crawler explicitement bloqué (HTTP 4xx, robots.txt strict)
+    - 🟡 **NA** : Test impossible (timeout, erreur réseau, erreur serveur)
     """)
 
 def main():

@@ -17,6 +17,12 @@ class BotsChecker:
         self.known_bots = {
             'googlebot': {
                 'user_agent_pattern': r'googlebot',
+                'user_agents': [
+                    'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+                    'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/W.X.Y.Z Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
+                    'Googlebot/2.1 (+http://www.google.com/bot.html)',
+                    'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome/W.X.Y.Z Safari/537.36'
+                ],
                 'ip_ranges': [
                     '66.249.', '64.233.', '72.14.', '74.125.', '209.85.', '216.239.',
                     '172.217.', '108.177.', '142.250.', '172.253.'
@@ -25,6 +31,11 @@ class BotsChecker:
             },
             'bingbot': {
                 'user_agent_pattern': r'bingbot',
+                'user_agents': [
+                    'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)',
+                    'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm) Chrome/W.X.Y.Z Safari/537.36',
+                    'Mozilla/5.0 (iPhone; CPU iPhone OS 7_0 like Mac OS X) AppleWebKit/537.51.1 (KHTML, like Gecko) Version/7.0 Mobile/11A465 Safari/9537.53 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)'
+                ],
                 'ip_ranges': [
                     '65.52.', '131.253.', '157.54.', '157.55.', '207.46.',
                     '40.77.', '13.66.', '20.190.'
@@ -33,6 +44,10 @@ class BotsChecker:
             },
             'yandexbot': {
                 'user_agent_pattern': r'yandexbot',
+                'user_agents': [
+                    'Mozilla/5.0 (compatible; YandexBot/3.0; +http://yandex.com/bots)',
+                    'Mozilla/5.0 (iPhone; CPU iPhone OS 8_1 like Mac OS X) AppleWebKit/600.1.4 (KHTML, like Gecko) Version/8.0 Mobile/12B411 Safari/600.1.4 (compatible; YandexMobileBot/3.0; +http://yandex.com/bots)'
+                ],
                 'ip_ranges': [
                     '77.88.', '87.250.', '93.158.', '95.108.', '178.154.',
                     '141.8.', '199.21.'
@@ -41,38 +56,95 @@ class BotsChecker:
             },
             'facebookbot': {
                 'user_agent_pattern': r'facebookexternalhit',
+                'user_agents': [
+                    'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
+                    'facebookexternalhit/1.1',
+                    'Mozilla/5.0 (compatible; FacebookBot/1.0; +https://developers.facebook.com/docs/sharing/webmasters/crawler)'
+                ],
                 'ip_ranges': ['31.13.', '66.220.', '69.63.', '69.171.', '74.119.', '173.252.'],
                 'dns_suffixes': ['.facebook.com']
             },
             'twitterbot': {
                 'user_agent_pattern': r'twitterbot',
+                'user_agents': [
+                    'Twitterbot/1.0',
+                    'Mozilla/5.0 (compatible; Twitterbot/1.0)'
+                ],
                 'ip_ranges': ['199.16.', '199.59.'],
                 'dns_suffixes': ['.twitter.com']
             },
             'linkedinbot': {
                 'user_agent_pattern': r'linkedinbot',
+                'user_agents': [
+                    'LinkedInBot/1.0 (compatible; Mozilla/5.0; +http://www.linkedin.com/)',
+                    'Mozilla/5.0 (compatible; LinkedInBot/1.0; +http://www.linkedin.com/)'
+                ],
                 'ip_ranges': ['108.174.'],
                 'dns_suffixes': ['.linkedin.com']
             },
             'openai': {
                 'user_agent_pattern': r'gptbot|chatgpt-user|openai',
+                'user_agents': [
+                    'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; GPTBot/1.0; +https://openai.com/gptbot',
+                    'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot',
+                    'GPTBot/1.0; +https://openai.com/gptbot'
+                ],
                 'ip_ranges': ['20.15.', '40.83.', '52.230.', '20.171.'],
                 'dns_suffixes': ['.openai.com']
             },
             'anthropic': {
                 'user_agent_pattern': r'claude-bot|anthropic',
+                'user_agents': [
+                    'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; Claude-Bot/1.0; +https://www.anthropic.com/',
+                    'Claude-Bot/1.0; +https://www.anthropic.com/'
+                ],
                 'ip_ranges': ['54.186.', '52.40.', '35.160.', '3.101.'],
                 'dns_suffixes': ['.anthropic.com']
             },
             'perplexity': {
                 'user_agent_pattern': r'perplexitybot',
+                'user_agents': [
+                    'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; PerplexityBot/1.0; +https://www.perplexity.ai/',
+                    'PerplexityBot/1.0; +https://www.perplexity.ai/'
+                ],
                 'ip_ranges': ['3.91.', '34.205.', '52.87.', '44.192.'],
                 'dns_suffixes': ['.perplexity.ai']
             },
             'cohere': {
                 'user_agent_pattern': r'cohere-ai',
+                'user_agents': [
+                    'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; Cohere-AI/1.0',
+                    'Cohere-AI/1.0'
+                ],
                 'ip_ranges': ['35.236.', '34.102.', '35.224.'],
                 'dns_suffixes': ['.cohere.ai']
+            },
+            'meta': {
+                'user_agent_pattern': r'meta-externalagent',
+                'user_agents': [
+                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_1) AppleWebKit/601.2.4 (KHTML, like Gecko) Version/9.0.1 Safari/601.2.4 facebookexternalhit/1.1 Facebot Twitterbot/1.0',
+                    'Meta-ExternalAgent/1.1 (+https://developers.facebook.com/docs/sharing/webmasters/crawler)'
+                ],
+                'ip_ranges': ['31.13.', '66.220.', '69.63.', '69.171.', '74.119.', '173.252.'],
+                'dns_suffixes': ['.facebook.com', '.meta.com']
+            },
+            'applebot': {
+                'user_agent_pattern': r'applebot',
+                'user_agents': [
+                    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_5) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.1 Safari/605.1.15 (Applebot/0.1; +http://www.apple.com/go/applebot)',
+                    'Mozilla/5.0 (Device; OS X.Y) AppleWebKit/WebKit Version Safari/Safari Version (Applebot/0.1; +http://www.apple.com/go/applebot)'
+                ],
+                'ip_ranges': ['17.', '23.', '63.92.'],
+                'dns_suffixes': ['.apple.com']
+            },
+            'baiduspider': {
+                'user_agent_pattern': r'baiduspider',
+                'user_agents': [
+                    'Mozilla/5.0 (compatible; Baiduspider/2.0; +http://www.baidu.com/search/spider.html)',
+                    'Mozilla/5.0 (iPhone; CPU iPhone OS 9_1 like Mac OS X) AppleWebKit/601.1.46 (KHTML, like Gecko) Version/9.0 Mobile/13B143 Safari/601.1 (compatible; Baiduspider-render/2.0; +http://www.baidu.com/search/spider.html)'
+                ],
+                'ip_ranges': ['220.181.', '123.125.', '180.76.'],
+                'dns_suffixes': ['.baidu.com', '.baidu.jp']
             }
         }
         
@@ -394,237 +466,234 @@ class BotsChecker:
                 'timestamp': datetime.now().isoformat()
             }
     
-    def check_robots_txt(self, url: str, selected_bots: List[str]) -> Dict:
-        """Vérifie robots.txt pour les bots sélectionnés"""
+    def check_url_access_detailed(self, url: str, bot_name: str) -> Dict:
+        """Test détaillé d'accès avec multiple User-Agents pour un bot"""
+        bot_info = self.known_bots.get(bot_name, {})
+        user_agents = bot_info.get('user_agents', [])
+        
+        if not user_agents:
+            return {
+                'bot_name': bot_name.upper(),
+                'url': url,
+                'status': 'NA',
+                'reason': 'Aucun User-Agent configuré',
+                'details': []
+            }
+        
+        test_results = []
+        overall_status = 'OK'  # Par défaut OK
+        blocking_reasons = []
+        
+        for i, user_agent in enumerate(user_agents):
+            try:
+                start_time = time.time()
+                headers = {'User-Agent': user_agent}
+                
+                response = requests.get(url, headers=headers, timeout=15, allow_redirects=True)
+                load_time = round(time.time() - start_time, 2)
+                
+                # Analyser la réponse
+                test_result = {
+                    'user_agent': user_agent,
+                    'status_code': response.status_code,
+                    'load_time': load_time,
+                    'blocked': False,
+                    'reason': ''
+                }
+                
+                # Déterminer si c'est bloqué
+                if response.status_code == 403:
+                    test_result['blocked'] = True
+                    test_result['reason'] = 'HTTP 403 Forbidden'
+                    blocking_reasons.append(f'UA{i+1}: 403 Forbidden')
+                elif response.status_code == 429:
+                    test_result['blocked'] = True
+                    test_result['reason'] = 'HTTP 429 Too Many Requests'
+                    blocking_reasons.append(f'UA{i+1}: 429 Rate Limited')
+                elif response.status_code == 406:
+                    test_result['blocked'] = True
+                    test_result['reason'] = 'HTTP 406 Not Acceptable'
+                    blocking_reasons.append(f'UA{i+1}: 406 Not Acceptable')
+                elif 400 <= response.status_code < 500:
+                    test_result['blocked'] = True
+                    test_result['reason'] = f'HTTP {response.status_code}'
+                    blocking_reasons.append(f'UA{i+1}: {response.status_code}')
+                elif response.status_code >= 500:
+                    # Erreur serveur = NA, pas de blocage
+                    test_result['reason'] = f'Erreur serveur {response.status_code}'
+                else:
+                    test_result['reason'] = f'Succès {response.status_code}'
+                
+                test_results.append(test_result)
+                
+            except requests.exceptions.Timeout:
+                test_results.append({
+                    'user_agent': user_agent,
+                    'status_code': 408,
+                    'load_time': 15.0,
+                    'blocked': False,
+                    'reason': 'Timeout'
+                })
+                
+            except requests.exceptions.ConnectionError:
+                test_results.append({
+                    'user_agent': user_agent,
+                    'status_code': 0,
+                    'load_time': 0,
+                    'blocked': False,
+                    'reason': 'Connection Error'
+                })
+                
+            except Exception as e:
+                test_results.append({
+                    'user_agent': user_agent,
+                    'status_code': 0,
+                    'load_time': 0,
+                    'blocked': False,
+                    'reason': f'Error: {str(e)}'
+                })
+        
+        # Déterminer le statut global
+        blocked_count = sum(1 for result in test_results if result['blocked'])
+        error_count = sum(1 for result in test_results if result['status_code'] == 0 or result['status_code'] >= 500)
+        timeout_count = sum(1 for result in test_results if 'Timeout' in result['reason'])
+        
+        if blocked_count == len(test_results):
+            overall_status = 'KO'
+            reason = f'Tous les UA bloqués ({", ".join(blocking_reasons)})'
+        elif blocked_count > 0:
+            if blocked_count >= len(test_results) / 2:
+                overall_status = 'KO'
+                reason = f'{blocked_count}/{len(test_results)} UA bloqués ({", ".join(blocking_reasons)})'
+            else:
+                overall_status = 'OK'
+                reason = f'Partiellement bloqué: {blocked_count}/{len(test_results)} UA'
+        elif error_count == len(test_results) or timeout_count == len(test_results):
+            overall_status = 'NA'
+            reason = 'Impossible de tester (erreurs/timeouts)'
+        else:
+            overall_status = 'OK'
+            reason = 'Accès autorisé'
+        
+        return {
+            'bot_name': bot_name.upper(),
+            'url': url,
+            'status': overall_status,
+            'reason': reason,
+            'details': test_results,
+            'summary': {
+                'total_tests': len(test_results),
+                'blocked': blocked_count,
+                'errors': error_count,
+                'timeouts': timeout_count,
+                'success': len(test_results) - blocked_count - error_count
+            }
+        }
+
+    def check_robots_txt_advanced(self, url: str, selected_bots: List[str]) -> Dict:
+        """Vérification avancée robots.txt avec tests d'accès détaillés"""
         try:
             parsed_url = urlparse(url)
             robots_url = f"{parsed_url.scheme}://{parsed_url.netloc}/robots.txt"
             
-            response = requests.get(robots_url, timeout=10)
-            if response.status_code != 200:
-                return {'error': f'Impossible de récupérer robots.txt (HTTP {response.status_code})'}
+            # Vérifier robots.txt
+            try:
+                response = requests.get(robots_url, timeout=10)
+                robots_available = response.status_code == 200
+                robots_content = response.text if robots_available else ""
+            except:
+                robots_available = False
+                robots_content = ""
             
-            robots_content = response.text
             results = {}
             
             for bot in selected_bots:
-                bot_rules = self._parse_robots_for_bot(robots_content, bot)
-                results[bot] = bot_rules
+                # Analyser robots.txt
+                if robots_available:
+                    bot_rules = self._parse_robots_for_bot(robots_content, bot)
+                else:
+                    bot_rules = {'allowed': [], 'disallowed': [], 'crawl_delay': None}
+                
+                # Test d'accès réel
+                access_test = self.check_url_access_detailed(url, bot)
+                
+                # Déterminer le statut final
+                robots_blocked = self._is_blocked_by_robots(url, bot_rules)
+                
+                final_status = 'OK'
+                final_reason = []
+                
+                # Logique de décision améliorée
+                if access_test['status'] == 'KO':
+                    final_status = 'KO'
+                    final_reason.append(f"Accès bloqué: {access_test['reason']}")
+                elif access_test['status'] == 'NA':
+                    if robots_blocked:
+                        final_status = 'KO'
+                        final_reason.append("Bloqué par robots.txt")
+                    else:
+                        final_status = 'NA'
+                        final_reason.append("Test impossible")
+                elif robots_blocked:
+                    # Accès OK mais robots.txt dit non - priorité à l'accès réel
+                    final_status = 'OK'
+                    final_reason.append("Autorisé malgré robots.txt")
+                else:
+                    final_status = 'OK'
+                    final_reason.append("Accès autorisé")
+                
+                results[bot] = {
+                    'status': final_status,
+                    'reason': ' | '.join(final_reason),
+                    'robots_txt': bot_rules,
+                    'robots_blocked': robots_blocked,
+                    'access_test': access_test,
+                    'robots_available': robots_available
+                }
             
             return {
                 'url': robots_url,
+                'original_url': url,
                 'status': 'success',
+                'robots_available': robots_available,
                 'results': results,
                 'timestamp': datetime.now().isoformat()
             }
             
         except Exception as e:
-            return {'error': f'Erreur lors de la vérification: {str(e)}'}
-    
-    def _parse_robots_for_bot(self, robots_content: str, bot: str) -> Dict:
-        """Parse robots.txt pour un bot spécifique avec amélioration"""
-        lines = robots_content.split('\n')
-        current_agents = []
-        bot_rules = {'allowed': [], 'disallowed': [], 'crawl_delay': None}
-        
-        # Patterns pour matcher le bot
-        bot_patterns = [
-            bot.lower(),
-            f'*{bot.lower()}*',
-            '*'
-        ]
-        
-        # Patterns spécifiques pour certains bots
-        specific_patterns = {
-            'openai': ['gptbot', 'chatgpt-user', 'openai'],
-            'anthropic': ['claude-bot', 'anthropic'],
-        }
-        
-        if bot in specific_patterns:
-            bot_patterns.extend(specific_patterns[bot])
-        
-        for line in lines:
-            line = line.strip()
-            
-            if line.startswith('#') or not line:
-                continue
-                
-            if line.lower().startswith('user-agent:'):
-                agent = line.split(':', 1)[1].strip().lower()
-                current_agents = [agent]
-                
-            elif current_agents and any(self._matches_agent(agent, bot_patterns) for agent in current_agents):
-                if line.lower().startswith('disallow:'):
-                    path = line.split(':', 1)[1].strip()
-                    if path and path not in bot_rules['disallowed']:
-                        bot_rules['disallowed'].append(path)
-                        
-                elif line.lower().startswith('allow:'):
-                    path = line.split(':', 1)[1].strip()
-                    if path and path not in bot_rules['allowed']:
-                        bot_rules['allowed'].append(path)
-                        
-                elif line.lower().startswith('crawl-delay:'):
-                    try:
-                        delay_value = line.split(':', 1)[1].strip()
-                        bot_rules['crawl_delay'] = int(delay_value)
-                    except ValueError:
-                        pass
-        
-        return bot_rules
-    
-    def _matches_agent(self, agent: str, patterns: List[str]) -> bool:
-        """Vérifie si un user-agent correspond aux patterns"""
-        agent = agent.lower()
-        for pattern in patterns:
-            if pattern == '*':
-                return True
-            elif pattern.startswith('*') and pattern.endswith('*'):
-                # Pattern comme *bot*
-                if pattern.strip('*') in agent:
-                    return True
-            elif pattern.endswith('*'):
-                # Pattern comme googlebot*
-                if agent.startswith(pattern.rstrip('*')):
-                    return True
-            elif pattern.startswith('*'):
-                # Pattern comme *bot
-                if agent.endswith(pattern.lstrip('*')):
-                    return True
-            else:
-                # Correspondance exacte ou contient
-                if pattern == agent or pattern in agent:
-                    return True
-        return False
-    
-    def format_result_output(self, result: Dict) -> str:
-        """Formate le résultat selon le style attendu"""
-        output = []
-        output.append(f"{result['bot_name']}:\t\t{result['overall_status']}")
-        output.append(f"\tStatus Code:\t{result['status_code']}")
-        output.append(f"\tRobots Meta:\t{result['robots_meta']}")
-        output.append(f"\tRobots.txt:\t{result['robots_txt']}")
-        output.append(f"\tTitle:\t\t{result['title']}")
-        output.append(f"\tLoad Time:\t{result['load_time']}")
-        return '\n'.join(output)
-    
-    def batch_check_urls(self, urls: List[str], selected_bots: List[str]) -> List[Dict]:
-        """Vérifie plusieurs URLs"""
-        results = []
-        
-        for url in urls:
-            if not url.strip():
-                continue
-                
-            url = url.strip()
-            if not url.startswith(('http://', 'https://')):
-                url = 'https://' + url
-            
-            result = self.check_robots_txt(url, selected_bots)
-            result['original_url'] = url
-            results.append(result)
-        
-        return results
-    
-    def batch_check_bots(self, bot_data: List[Dict]) -> List[Dict]:
-        """Vérifie plusieurs bots en lot"""
-        results = []
-        
-        for data in bot_data:
-            user_agent = data.get('user_agent', '')
-            ip = data.get('ip', '')
-            
-            if user_agent and ip:
-                result = self.comprehensive_check(user_agent, ip)
-                results.append(result)
-        
-        return results
-    
-    def export_to_excel(self, results: List[Dict], filename: str = None, export_type: str = 'robots') -> str:
-        """Exporte les résultats vers Excel"""
-        if filename is None:
-            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-            filename = f"{export_type}_check_{timestamp}.xlsx"
-        
-        if export_type == 'robots':
-            data = self._format_robots_data(results)
-        else:
-            data = self._format_bot_validation_data(results)
-        
-        df = pd.DataFrame(data)
-        df.to_excel(filename, index=False)
-        return filename
-    
-    def _format_robots_data(self, results: List[Dict]) -> List[Dict]:
-        """Formate les données pour l'export robots.txt"""
-        data = []
-        for result in results:
-            if 'error' in result:
-                data.append({
-                    'URL': result.get('original_url', ''),
-                    'Status': 'Error',
-                    'Error': result['error'],
-                    'Bot': '',
-                    'Allowed': '',
-                    'Disallowed': '',
-                    'Crawl_Delay': '',
-                    'Timestamp': result.get('timestamp', '')
-                })
-            else:
-                for bot, rules in result.get('results', {}).items():
-                    data.append({
-                        'URL': result['original_url'],
-                        'Status': 'Success',
-                        'Error': '',
-                        'Bot': bot,
-                        'Allowed': '; '.join(rules.get('allowed', [])),
-                        'Disallowed': '; '.join(rules.get('disallowed', [])),
-                        'Crawl_Delay': rules.get('crawl_delay', ''),
-                        'Timestamp': result.get('timestamp', '')
-                    })
-        return data
-    
-    def _format_bot_validation_data(self, results: List[Dict]) -> List[Dict]:
-        """Formate les données pour l'export de validation de bots"""
-        data = []
-        for result in results:
-            base_row = {
-                'User_Agent': result.get('user_agent', ''),
-                'IP': result.get('ip', ''),
-                'Timestamp': result.get('timestamp', ''),
-                'Claims_Bot': result.get('is_bot_claimed', False),
-                'Verdict': result.get('summary', {}).get('verdict', ''),
-                'Is_Legitimate': result.get('summary', {}).get('is_legitimate_bot', False),
-                'Is_Suspicious': result.get('summary', {}).get('suspicious', False),
-                'Legitimate_Bots': '; '.join(result.get('summary', {}).get('legitimate_bots', []))
+            return {
+                'url': url,
+                'original_url': url,
+                'error': f'Erreur lors de la vérification: {str(e)}',
+                'timestamp': datetime.now().isoformat()
             }
-            
-            if result.get('bot_validations'):
-                for bot_name, validation in result['bot_validations'].items():
-                    row = base_row.copy()
-                    row.update({
-                        'Detected_Bot': bot_name,
-                        'IP_Range_Valid': validation.get('ip_range_valid', False),
-                        'DNS_Hostname': validation.get('dns_validation', {}).get('hostname', ''),
-                        'DNS_Valid': validation.get('dns_validation', {}).get('is_valid_dns', False),
-                        'DNS_Matches': validation.get('dns_validation', {}).get('dns_matches', False),
-                        'DNS_Authentic': validation.get('dns_validation', {}).get('is_authentic', False),
-                        'Confidence': validation.get('confidence', 'low')
-                    })
-                    data.append(row)
-            else:
-                base_row.update({
-                    'Detected_Bot': '',
-                    'IP_Range_Valid': False,
-                    'DNS_Hostname': '',
-                    'DNS_Valid': False,
-                    'DNS_Matches': False,
-                    'DNS_Authentic': False,
-                    'Confidence': 'low'
-                })
-                data.append(base_row)
+
+    def _is_blocked_by_robots(self, url: str, bot_rules: Dict) -> bool:
+        """Détermine si une URL est bloquée par robots.txt"""
+        parsed_url = urlparse(url)
+        path = parsed_url.path or '/'
         
-        return data
+        disallowed = bot_rules.get('disallowed', [])
+        allowed = bot_rules.get('allowed', [])
+        
+        # Vérifier les règles Allow d'abord (priorité)
+        for allow_rule in allowed:
+            if path.startswith(allow_rule):
+                return False
+        
+        # Vérifier les règles Disallow
+        for disallow_rule in disallowed:
+            if disallow_rule == '/':
+                return True
+            elif path.startswith(disallow_rule):
+                return True
+        
+        return False
+
+    # Mise à jour de la méthode check_robots_txt pour utiliser la version avancée
+    def check_robots_txt(self, url: str, selected_bots: List[str]) -> Dict:
+        """Méthode mise à jour utilisant les tests avancés"""
+        return self.check_robots_txt_advanced(url, selected_bots)
 
 def main():
     checker = BotsChecker()
