@@ -1,102 +1,102 @@
-import requests
-import re
-import socket
-import json
-from urllib.parse import urlparse
-from typing import Dict, List, Optional
-import pandas as pd
-from datetime import datetime
-import time
-try:
-    from bs4 import BeautifulSoup
-except ImportError:
-    BeautifulSoup = None
+"""
+Module principal pour la vérification des bots
+"""
 
-try:
-    from protego import Protego
-except ImportError:
-    Protego = None
+import requests
+from typing import Dict, List
+from datetime import datetime
+
+from core.bot_definitions import BOT_DEFINITIONS
+from core.robots_parser import RobotsParser
+from core.bot_tester import BotTester
+
 
 class BotsChecker:
+    """Vérificateur principal des bots"""
+    
     def __init__(self):
-        self.known_bots = {
-            'openai': {
-                'user_agent_pattern': r'gptbot|chatgpt-user|openai|oai-searchbot',
-                'user_agents': {
-                    'GPTBot': 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; GPTBot/1.1; +https://openai.com/gptbot',
-                    'ChatGPT-User': 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; ChatGPT-User/1.0; +https://openai.com/bot',
-                    'OAI-SearchBot': 'OAI-SearchBot/1.0; +https://openai.com/searchbot'
-                }
-            },
-            'anthropic': {
-                'user_agent_pattern': r'claude-bot|anthropic|claudebot',
-                'user_agents': {
-                    'ClaudeBot': 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; ClaudeBot/1.0; +claudebot@anthropic.com)',
-                    'Claude-User': 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Claude-User/1.0; +Claude-User@anthropic.com)'
-                }
-            },
-            'perplexity': {
-                'user_agent_pattern': r'perplexitybot|perplexity',
-                'user_agents': {
-                    'PerplexityBot': 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot)',
-                    'Perplexity-User': 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Perplexity-User/1.0; +https://perplexity.ai/perplexity-user)'
-                }
-            },
-            'googlebot': {
-                'user_agent_pattern': r'googlebot',
-                'user_agents': {
-                    'Googlebot': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
-                    'Googlebot-Mobile': 'Mozilla/5.0 (Linux; Android 6.0.1; Nexus 5X Build/MMB29P) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/W.X.Y.Z Mobile Safari/537.36 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
-                }
-            },
-            'bingbot': {
-                'user_agent_pattern': r'bingbot',
-                'user_agents': {
-                    'BingBot': 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)',
-                    'BingBot-Mobile': 'Mozilla/5.0 (iPhone; CPU iPhone OS 7_0 like Mac OS X) AppleWebKit/537.51.1 (KHTML, like Gecko) Version/7.0 Mobile/11A465 Safari/9537.53 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)'
-                }
-            },
-            'yandexbot': {
-                'user_agent_pattern': r'yandexbot',
-                'user_agents': {
-                    'YandexBot': 'Mozilla/5.0 (compatible; YandexBot/3.0; +http://yandex.com/bots)',
-                    'YandexMobileBot': 'Mozilla/5.0 (iPhone; CPU iPhone OS 8_1 like Mac OS X) AppleWebKit/600.1.4 (KHTML, like Gecko) Version/8.0 Mobile/12B411 Safari/600.1.4 (compatible; YandexMobileBot/3.0; +http://yandex.com/bots)'
-                }
-            },
-            'facebookbot': {
-                'user_agent_pattern': r'facebookexternalhit',
-                'user_agents': {
-                    'FacebookBot': 'facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)',
-                    'FacebookBot-Mobile': 'Mozilla/5.0 (compatible; FacebookBot/1.0; +https://developers.facebook.com/docs/sharing/webmasters/crawler)'
-                }
-            },
-            'twitterbot': {
-                'user_agent_pattern': r'twitterbot',
-                'user_agents': {
-                    'TwitterBot': 'Twitterbot/1.0',
-                    'TwitterBot-Compatible': 'Mozilla/5.0 (compatible; Twitterbot/1.0)'
-                }
-            },
-            'linkedinbot': {
-                'user_agent_pattern': r'linkedinbot',
-                'user_agents': {
-                    'LinkedInBot': 'LinkedInBot/1.0 (compatible; Mozilla/5.0; +http://www.linkedin.com/)',
-                    'LinkedInBot-Compatible': 'Mozilla/5.0 (compatible; LinkedInBot/1.0; +http://www.linkedin.com/)'
-                }
-            },
-            'cohere': {
-                'user_agent_pattern': r'cohere-ai',
-                'user_agents': {
-                    'CohereBot': 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko); compatible; Cohere-AI/1.0',
-                    'CohereBot-Simple': 'Cohere-AI/1.0'
-                }
-            }
-        }
+        self.known_bots = BOT_DEFINITIONS
+        self.robots_parser = RobotsParser()
+        self.bot_tester = BotTester()
         
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'BotsChecker/1.0 (+https://github.com/bots-checker)'
         })
+    
+    def get_bot_list(self) -> List[str]:
+        """Retourne la liste des bots disponibles"""
+        return list(self.known_bots.keys())
+    
+    def check_robots_txt(self, url: str, selected_bots: List[str]) -> Dict:
+        """Vérification complète avec la nouvelle logique"""
+        try:
+            # Récupérer le parser robots.txt
+            robots_parser, robots_url = self.robots_parser.get_robots_parser(url)
+            
+            results = {}
+            all_tests = []
+            
+            for bot in selected_bots:
+                if bot not in self.known_bots:
+                    continue
+                
+                bot_info = self.known_bots[bot]
+                user_agents = bot_info.get('user_agents', {})
+                
+                bot_tests = []
+                
+                # Tester chaque user agent du bot
+                for ua_name, user_agent in user_agents.items():
+                    test_result = self.bot_tester.test_bot_access(
+                        url, bot, ua_name, user_agent, robots_parser
+                    )
+                    bot_tests.append(test_result)
+                    all_tests.append(test_result)
+                
+                # Déterminer le statut global du bot
+                bot_status, bot_reason = self.bot_tester.determine_bot_status(bot_tests)
+                
+                # Calculer le résumé
+                ok_count = sum(1 for test in bot_tests if test['status'] == 'OK')
+                ko_count = sum(1 for test in bot_tests if test['status'] == 'KO')
+                na_count = sum(1 for test in bot_tests if test['status'] == 'NA')
+                
+                results[bot] = {
+                    'status': bot_status,
+                    'reason': bot_reason,
+                    'tests': bot_tests,
+                    'summary': {
+                        'total': len(bot_tests),
+                        'ok': ok_count,
+                        'ko': ko_count,
+                        'na': na_count
+                    }
+                }
+            
+            return {
+                'url': robots_url if robots_url else url,
+                'original_url': url,
+                'status': 'success',
+                'robots_available': robots_parser is not None,
+                'results': results,
+                'all_tests': all_tests,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            return {
+                'url': url,
+                'original_url': url,
+                'error': f'Erreur lors de la vérification: {str(e)}',
+                'timestamp': datetime.now().isoformat()
+            }
+
+
+if __name__ == "__main__":
+    checker = BotsChecker()
+    print("BotsChecker initialisé avec succès")
+    print(f"Bots disponibles: {checker.get_bot_list()}")
     
     def get_bot_list(self) -> List[str]:
         """Retourne la liste des bots disponibles"""
