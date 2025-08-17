@@ -274,6 +274,55 @@ def render_url_input():
     
     return urls
 
+def create_detailed_results_table(results, selected_bots):
+    """Crée un tableau détaillé avec le statut OK/KO pour chaque site et crawler"""
+    table_data = []
+    
+    for result in results:
+        row = {'Site': result['original_url']}
+        
+        if 'error' in result:
+            # Si erreur globale, tous les bots sont KO
+            for bot in selected_bots:
+                row[bot.upper()] = f"KO ({result['error']})"
+        else:
+            # Analyser chaque bot
+            for bot in selected_bots:
+                if bot in result.get('results', {}):
+                    rules = result['results'][bot]
+                    
+                    # Vérifier les règles de blocage
+                    disallowed = rules.get('disallowed', [])
+                    
+                    # Déterminer le statut
+                    if not disallowed:
+                        row[bot.upper()] = "OK"
+                    else:
+                        # Vérifier les règles critiques
+                        critical_blocks = []
+                        for rule in disallowed:
+                            if rule == '/':
+                                critical_blocks.append("Blocage total")
+                            elif rule in ['/admin', '/wp-admin']:
+                                critical_blocks.append("Admin bloqué")
+                            elif rule in ['/api', '/private']:
+                                critical_blocks.append("API/Privé bloqué")
+                        
+                        if critical_blocks:
+                            reason = ", ".join(critical_blocks)
+                            row[bot.upper()] = f"KO ({reason})"
+                        elif len(disallowed) > 5:
+                            row[bot.upper()] = f"KO (Nombreuses restrictions: {len(disallowed)} règles)"
+                        else:
+                            # Restrictions mineures
+                            row[bot.upper()] = "OK (Restrictions mineures)"
+                else:
+                    row[bot.upper()] = "KO (Non analysé)"
+        
+        table_data.append(row)
+    
+    return pd.DataFrame(table_data)
+
 def render_results(results, selected_bots):
     """Affichage amélioré des résultats"""
     st.markdown("## 📊 Résultats de l'analyse")
@@ -327,6 +376,33 @@ def render_results(results, selected_bots):
                 horizontal=True,
                 color=['#28a745', '#dc3545']  # Vert pour autorisant, Rouge pour bloquant
             )
+    
+    # Tableau détaillé des résultats
+    st.markdown("---")
+    st.subheader("📋 Tableau détaillé des résultats")
+    
+    detailed_table = create_detailed_results_table(results, selected_bots)
+    
+    # Fonction pour colorer les cellules
+    def highlight_status(val):
+        if isinstance(val, str):
+            if val.startswith("OK"):
+                return 'background-color: #d4edda; color: #155724'  # Vert clair
+            elif val.startswith("KO"):
+                return 'background-color: #f8d7da; color: #721c24'  # Rouge clair
+        return ''
+    
+    # Appliquer le style et afficher le tableau
+    styled_table = detailed_table.style.applymap(highlight_status)
+    st.dataframe(styled_table, use_container_width=True, height=400)
+    
+    # Légende
+    st.markdown("""
+    **Légende:**
+    - 🟢 **OK** : Crawler autorisé sans restrictions majeures
+    - 🔴 **KO** : Crawler bloqué ou avec restrictions importantes
+    - **Restrictions mineures** : Quelques chemins bloqués mais accès général autorisé
+    """)
 
 def main():
     # Initialisation des variables de session
