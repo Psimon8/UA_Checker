@@ -377,11 +377,14 @@ def render_results(results, selected_bots):
                 color=['#28a745', '#dc3545']  # Vert pour autorisant, Rouge pour bloquant
             )
     
-    # Tableau détaillé des résultats
+    # Tableau détaillé des résultats - Affichage des 3 premières lignes seulement
     st.markdown("---")
-    st.subheader("📋 Tableau détaillé des résultats")
+    st.subheader("📋 Aperçu des résultats (3 premiers sites)")
     
     detailed_table = create_detailed_results_table(results, selected_bots)
+    
+    # Limiter aux 3 premières lignes
+    preview_table = detailed_table.head(3)
     
     # Fonction pour colorer les cellules
     def highlight_status(val):
@@ -392,9 +395,13 @@ def render_results(results, selected_bots):
                 return 'background-color: #f8d7da; color: #721c24'  # Rouge clair
         return ''
     
-    # Appliquer le style et afficher le tableau
-    styled_table = detailed_table.style.applymap(highlight_status)
-    st.dataframe(styled_table, use_container_width=True, height=400)
+    # Appliquer le style et afficher le tableau (3 premières lignes)
+    styled_table = preview_table.style.applymap(highlight_status)
+    st.dataframe(styled_table, use_container_width=True, height=200)
+    
+    # Afficher l'information sur le nombre total
+    if len(detailed_table) > 3:
+        st.info(f"Aperçu de 3 sites sur {len(detailed_table)} analysés. Téléchargez le rapport Excel pour voir tous les résultats.")
     
     # Légende
     st.markdown("""
