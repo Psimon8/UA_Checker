@@ -258,7 +258,7 @@ def create_detailed_results_table(results, selected_bots):
         if 'error' in result:
             # Si erreur globale, tous les bots sont NA
             for bot in selected_bots:
-                row[bot.upper()] = f"NA (Erreur: {result['error'][:50]}...)"
+                row[bot.upper()] = f"NA (Erreur: {result['error'][:30]}...)"
         else:
             # Analyser chaque bot avec les nouveaux résultats
             for bot in selected_bots:
@@ -266,36 +266,39 @@ def create_detailed_results_table(results, selected_bots):
                     bot_result = result['results'][bot]
                     status = bot_result.get('status', 'NA')
                     reason = bot_result.get('reason', 'Raison inconnue')
+                    summary = bot_result.get('summary', {})
                     
-                    # Format: STATUS (raison courte)
+                    # Format amélioré avec détails
                     if status == 'OK':
-                        if 'malgré robots.txt' in reason:
-                            row[bot.upper()] = "OK (Malgré robots.txt)"
+                        if summary.get('total', 0) > 1:
+                            ok_count = summary.get('ok', 0)
+                            total = summary.get('total', 1)
+                            if ok_count == total:
+                                row[bot.upper()] = "OK (Tous UA)"
+                            else:
+                                row[bot.upper()] = f"OK ({ok_count}/{total} UA)"
                         else:
                             row[bot.upper()] = "OK"
                     elif status == 'KO':
-                        # Extraire la raison principale
                         if 'Tous les UA bloqués' in reason:
-                            row[bot.upper()] = "KO (Tous UA bloqués)"
-                        elif 'UA bloqués' in reason:
-                            row[bot.upper()] = "KO (UA partiellement bloqués)"
-                        elif 'robots.txt' in reason:
+                            row[bot.upper()] = "KO (Tous bloqués)"
+                        elif 'robots.txt' in reason.lower():
                             row[bot.upper()] = "KO (Robots.txt)"
-                        elif '403' in reason:
-                            row[bot.upper()] = "KO (403 Forbidden)"
-                        elif '429' in reason:
-                            row[bot.upper()] = "KO (Rate Limited)"
+                        elif 'http' in reason.lower():
+                            row[bot.upper()] = "KO (HTTP)"
+                        elif 'noindex' in reason.lower():
+                            row[bot.upper()] = "KO (Meta noindex)"
                         else:
-                            row[bot.upper()] = f"KO ({reason[:20]}...)"
+                            row[bot.upper()] = f"KO ({reason[:15]}...)"
                     else:  # NA
-                        if 'Test impossible' in reason:
-                            row[bot.upper()] = "NA (Test impossible)"
-                        elif 'Timeout' in reason:
+                        if 'timeout' in reason.lower():
                             row[bot.upper()] = "NA (Timeout)"
-                        elif 'erreurs' in reason:
-                            row[bot.upper()] = "NA (Erreurs réseau)"
+                        elif 'impossible' in reason.lower():
+                            row[bot.upper()] = "NA (Test impossible)"
+                        elif 'erreur' in reason.lower():
+                            row[bot.upper()] = "NA (Erreur réseau)"
                         else:
-                            row[bot.upper()] = f"NA ({reason[:20]}...)"
+                            row[bot.upper()] = f"NA ({reason[:15]}...)"
                 else:
                     row[bot.upper()] = "NA (Non testé)"
         
@@ -316,11 +319,13 @@ def render_results(results, selected_bots):
     ok_count = 0
     ko_count = 0
     na_count = 0
+    total_tests = 0
     
     for result in results:
-        if 'error' not in result and 'results' in result:
-            for bot_result in result['results'].values():
-                status = bot_result.get('status', 'NA')
+        if 'error' not in result and 'all_tests' in result:
+            for test in result['all_tests']:
+                total_tests += 1
+                status = test.get('status', 'NA')
                 if status == 'OK':
                     ok_count += 1
                 elif status == 'KO':
@@ -344,7 +349,6 @@ def render_results(results, selected_bots):
         st.metric("⚠️ Tests NA", na_count)
     
     with col5:
-        total_tests = ok_count + ko_count + na_count
         success_rate = (ok_count / total_tests * 100) if total_tests > 0 else 0
         st.metric("📈 Taux de succès", f"{success_rate:.1f}%")
 
@@ -378,13 +382,13 @@ def render_results(results, selected_bots):
                 color=['#28a745', '#dc3545']  # Vert pour autorisant, Rouge pour bloquant
             )
     
-    # Tableau détaillé des résultats - Affichage de tous les résultats
+    # Tableau détaillé des résultats
     st.markdown("---")
     st.subheader("📋 Résultats détaillés")
     
     detailed_table = create_detailed_results_table(results, selected_bots)
     
-    # Fonction pour colorer les cellules améliorée
+    # Fonction pour colorer les cellules
     def highlight_status(val):
         if isinstance(val, str):
             if val.startswith("OK"):
@@ -401,10 +405,12 @@ def render_results(results, selected_bots):
     
     # Légende mise à jour
     st.markdown("""
-    **Légende:**
-    - 🟢 **OK** : Crawler autorisé et accès confirmé
-    - 🔴 **KO** : Crawler explicitement bloqué (HTTP 4xx, robots.txt strict)
-    - 🟡 **NA** : Test impossible (timeout, erreur réseau, erreur serveur)
+    **Légende (nouvelle logique):**
+    - 🟢 **OK** : Status 200 + Robots.txt autorise + Pas de meta noindex
+    - 🔴 **KO** : Status ≠ 200 OU Robots.txt bloque OU Meta noindex présent
+    - 🟡 **NA** : Test impossible (timeout, erreur réseau)
+    
+    **Note :** Un bot est OK si au moins un de ses User-Agents est autorisé.
     """)
 
 def main():
