@@ -246,32 +246,6 @@ def render_url_input():
         if predefined:
             urls = predefined
     
-    # Affichage des URLs sélectionnées dans tous les cas
-    if urls:
-        st.markdown("### 📋 URLs à analyser")
-        
-        # Créer un container pour l'affichage
-        url_container = st.container()
-        with url_container:
-            # Affichage en colonnes
-            num_cols = min(len(urls), 3)
-            if num_cols > 0:
-                cols = st.columns(num_cols)
-                for i, url in enumerate(urls):
-                    with cols[i % num_cols]:
-                        # Validation et nettoyage de l'URL
-                        clean_url = url.strip()
-                        if not clean_url.startswith(('http://', 'https://')):
-                            clean_url = 'https://' + clean_url
-                        
-                        st.markdown(f"**{i+1}.** `{clean_url}`")
-                        
-                        # Mise à jour de l'URL dans la liste
-                        urls[i] = clean_url
-        
-        if len(urls) > 9:
-            st.info(f"Et {len(urls) - 9} autres URLs...")
-    
     return urls
 
 def create_detailed_results_table(results, selected_bots):
