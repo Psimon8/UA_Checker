@@ -305,9 +305,10 @@ def render_results(results, selected_bots):
         st.subheader("🚫 Raisons de blocage")
         blocking_df = create_blocking_reasons_chart(results)
         if blocking_df is not None:
-            # Graphique vertical avec couleurs différentes pour chaque raison
+            # Graphique horizontal avec couleurs pour les blocages
             st.bar_chart(
                 blocking_df.set_index('Raison'),
+                horizontal=True,
                 color='#ff6b6b'  # Rouge pour les blocages
             )
         else:
@@ -416,9 +417,10 @@ def main():
         st.markdown("---")
         st.markdown("## 💾 Exporter les résultats")
         
-        col_export1, col_export2 = st.columns(2)
+        # Centrer le bouton sur la page
+        col_center1, col_center2, col_center3 = st.columns([2, 1, 2])
         
-        with col_export1:
+        with col_center2:
             if st.button("📊 Générer rapport Excel", type="secondary", use_container_width=True):
                 # Préparer les données pour Excel
                 excel_data = []
@@ -453,11 +455,6 @@ def main():
                 
                 st.markdown(get_download_link(df_export, filename), unsafe_allow_html=True)
                 st.success("📄 Rapport Excel généré!")
-        
-        with col_export2:
-            # Afficher les stats de l'analyse
-            analysis_time = st.session_state.analysis_timestamp.strftime('%d/%m/%Y à %H:%M')
-            st.info(f"📅 **Analyse effectuée le:** {analysis_time}")
         
         # Résultats détaillés par URL (déplacé après l'export)
         st.markdown("---")
